@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#17251f">
 <title>Do Better Society — Cleanup Club</title>
-<!-- Three.js for 3D Room -->
+<!-- Three.js for 3D Room & Park -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <!-- Firebase SDKs for Real-Time Internet Sync -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -53,6 +53,8 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
 #roomCanvasContainer{position:relative;width:100%;height:420px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
 #roomCanvasContainer canvas{display:block;width:100%!important;height:100%!important}
+#parkCanvasContainer{position:relative;width:100%;height:420px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
+#parkCanvasContainer canvas{display:block;width:100%!important;height:100%!important}
 #friendRoomCanvasContainer{position:relative;width:100%;height:420px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
 #friendRoomCanvasContainer canvas{display:block;width:100%!important;height:100%!important}
 
@@ -159,7 +161,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <button class="nav active" data-view="cleanup"><span>🧤</span>Clean up</button>
   <button class="nav" data-view="steps"><span>👟</span>Step Logger</button>
   <button class="nav" data-view="photos"><span>📸</span>Photo Database</button>
-  <button class="nav" data-view="room" onclick="init3DRoom()"><span>🏡</span>My Room</button>
+  <button class="nav" id="roomOrParkNavBtn" data-view="room" onclick="handleRoomOrParkNavClick()"><span>🏡</span>My Room</button>
   <button class="nav" data-view="friendRoomTab" id="friendRoomNavBtn" style="display:none" onclick="initFriend3DRoom()"><span>👀</span>Friend's Room</button>
   <button class="nav" data-view="shop"><span>🛍️</span>Shop</button>
   <button class="nav" data-view="social" onclick="initSocialTab()"><span>💬</span>DMs</button>
@@ -258,12 +260,12 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
         <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
         <div class="trash-drop-zone" id="trashDropZone">🗑️ Drop here to Store</div>
         <div class="room-top-controls">
-          <button class="btn secondary" onclick="resetRoomView()" style="padding:4px 8px;font-size:11px" title="Reset to Regular Corner View">🏠 Reset View</button>
+          <button class="btn secondary" onclick="resetRoomView()" style="padding:4px 8px;font-size:11px" title="Reset View">🏠 Reset View</button>
           <button class="btn secondary" onclick="zoomRoom(0.8)" style="padding:4px 8px;font-size:12px">+</button>
           <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
           <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
         </div>
-        <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit · Click to move · <b>Joystick / WASD</b> walks Cat 🐈 over furniture</div>
+        <div class="room-instructions">📱 Drag to Orbit · Click to move · <b>Joystick / WASD</b> walks Cat 🐈 over furniture</div>
         
         <!-- Virtual Analog Joystick -->
         <div class="joystick-container" id="joystickBase">
@@ -276,6 +278,30 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
       <h3>📦 Room Inventory & Storage</h3>
       <p class="sub">Click any owned item to place it in your room or store it away!</p>
       <div class="shopgrid" id="roomInventoryGrid"></div>
+    </div>
+  </section>
+
+  <section class="view" id="park">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h3 id="parkHeaderTitle" style="margin:0">🌳 Randomly Generated Park</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="generateNewPark()" style="padding:6px 12px;font-size:12px">🎲 Generate New Park</button>
+          <button class="btn secondary" onclick="resetParkView()" style="padding:4px 8px;font-size:11px">🏠 Reset View</button>
+        </div>
+      </div>
+      <div id="parkCanvasContainer">
+        <div class="room-instructions">🌳 Walk Cat 🐈 over litter pieces to pick them up (+1 coin each)!</div>
+        
+        <!-- Virtual Analog Joystick for Park -->
+        <div class="joystick-container" id="parkJoystickBase">
+          <div class="joystick-knob" id="parkJoystickKnob"></div>
+        </div>
+      </div>
+      <div style="margin-top:14px;background:var(--bg);border:1px solid var(--line);padding:12px;border-radius:12px;display:flex;justify-content:space-between;align-items:center">
+        <span><b>Litter Remaining in Park:</b> <span id="litterCountDisplay" style="color:var(--lime);font-family:'DM Mono';font-size:16px">5 / 5</span></span>
+        <button class="btn secondary" onclick="generateNewPark()">NEW PARK & LITTER 🔄</button>
+      </div>
     </div>
   </section>
 
@@ -459,6 +485,13 @@ let friendCamDist = 6.8;
 let friendCameraAngleX = Math.PI / 4;
 let friendCameraAngleY = Math.PI / 4;
 
+let parkCamDist = 8.0;
+let parkCameraAngleX = Math.PI / 4;
+let parkCameraAngleY = Math.PI / 4;
+let parkTrashItems = [];
+let parkCatMesh = null;
+let parkAnimationId = null;
+
 // Joystick & Key Movement State for Cat Companion
 const movementKeys = { up: false, down: false, left: false, right: false };
 let joystickVector = { x: 0, y: 0 };
@@ -480,6 +513,13 @@ function resetRoomView() {
   currentCameraAngleX = Math.PI / 4;
   currentCameraAngleY = Math.PI / 4;
   init3DRoom();
+}
+
+function resetParkView() {
+  parkCamDist = 8.0;
+  parkCameraAngleX = Math.PI / 4;
+  parkCameraAngleY = Math.PI / 4;
+  initPark();
 }
 
 function resetFriendRoomView() {
@@ -526,12 +566,39 @@ function toggleWalkMode() {
   isWalkModeActive = !isWalkModeActive;
   document.body.classList.toggle('walk-mode', isWalkModeActive);
   let btn = document.getElementById('walkToggle');
+  let navBtn = document.getElementById('roomOrParkNavBtn');
+  
   if(isWalkModeActive) {
     btn.textContent = '🏡 BACK INDOORS';
-    toast('Nature walk mode enabled! 🌲🍃 Music is now cheerful and uplifting!');
+    navBtn.innerHTML = '<span>🌳</span>Park';
+    navBtn.dataset.view = 'park';
+    toast('Nature walk mode enabled! 🌲🍃 Visit the Park tab to collect litter!');
+    
+    // Switch active view to park if currently in room
+    if(document.getElementById('room').classList.contains('active')) {
+      document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x === navBtn));
+      document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'park'));
+      initPark();
+    }
   } else {
     btn.textContent = '🌲 ON A WALK';
+    navBtn.innerHTML = '<span>🏡</span>My Room';
+    navBtn.dataset.view = 'room';
     toast('Welcome back inside!');
+    
+    if(document.getElementById('park').classList.contains('active')) {
+      document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x === navBtn));
+      document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'room'));
+      init3DRoom();
+    }
+  }
+}
+
+function handleRoomOrParkNavClick() {
+  if(isWalkModeActive) {
+    initPark();
+  } else {
+    init3DRoom();
   }
 }
 
@@ -703,6 +770,9 @@ function setupCloudListeners() {
       }
       if(document.getElementById('room').classList.contains('active')) {
         init3DRoom();
+      }
+      if(document.getElementById('park').classList.contains('active')) {
+        initPark();
       }
       if(document.getElementById('profile').classList.contains('active') && (!viewingProfileUid || viewingProfileUid === currentUser.uid)) {
         renderProfileView(userData, true);
@@ -907,6 +977,9 @@ document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () =>
   });
   if(targetView === 'room') {
     init3DRoom();
+  }
+  if(targetView === 'park') {
+    initPark();
   }
   if(targetView === 'friends') {
     fetchAllMembers();
@@ -1198,13 +1271,16 @@ function backToMyRoomTab() {
   visitingFriendData = null;
   document.getElementById('friendRoomNavBtn').style.display = 'none';
   
-  document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'room'));
+  let targetNav = document.getElementById('roomOrParkNavBtn');
+  let targetViewId = isWalkModeActive ? 'park' : 'room';
+
+  document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x === targetNav));
   document.querySelectorAll('.view').forEach(x => {
-    let isActive = (x.id === 'room');
+    let isActive = (x.id === targetViewId);
     x.classList.toggle('active', isActive);
   });
-  init3DRoom();
-  toast('Returned to your room!');
+  if(isWalkModeActive) initPark(); else init3DRoom();
+  toast('Returned!');
 }
 
 function loadDirectory() {
@@ -1385,26 +1461,13 @@ function createItemModel(id, customCatColor=0xffa500, activeDataObj=null) {
   else if(id==='sofa'){ addBox(2.2, 0.45, 0.9, 0x1e90ff, 0, 0.225, 0); addBox(2.2, 0.9, 0.25, 0x0000cd, 0, 0.65, -0.325); }
   else if(id==='painting'){ addBox(1.2, 0.9, 0.08, 0x8b4513, 0, 0, 0); addBox(1.0, 0.7, 0.1, 0xffd700, 0, 0, 0.02); }
   else if(id==='window'){ 
-    // Realistic multi-pane window frame & glass
-    addBox(1.6, 1.6, 0.12, 0x3b220d, 0, 0, 0); // Outer frame
-    // Glass pane with soft translucent glow/reflection look
-    const glassMat = new THREE.MeshStandardMaterial({
-      color: isWalkModeActive ? 0x67e8f0 : 0xa0e0ff,
-      transparent: true,
-      opacity: 0.35,
-      roughness: 0.1,
-      metalness: 0.9,
-      emissive: isWalkModeActive ? 0x103040 : 0x205060,
-      emissiveIntensity: 0.5
-    });
+    addBox(1.6, 1.6, 0.12, 0x3b220d, 0, 0, 0);
+    const glassMat = new THREE.MeshStandardMaterial({color: 0xa0e0ff, transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.9, emissive: 0x205060, emissiveIntensity: 0.5});
     const glass = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 0.02), glassMat);
     glass.position.set(0, 0, 0);
     group.add(glass);
-
-    // Window muntins (cross bars)
     addBox(0.06, 1.4, 0.06, 0x3b220d, 0, 0, 0.01);
     addBox(1.4, 0.06, 0.06, 0x3b220d, 0, 0, 0.01);
-    // Window sill
     addBox(1.8, 0.12, 0.22, 0x4e3113, 0, -0.8, 0.05);
   }
   else if(id==='door'){ 
@@ -1492,7 +1555,7 @@ window.addEventListener('keydown', (e) => {
   if ("arrowleft" === k || "a" === k) movementKeys.left = true;
   if ("arrowright" === k || "d" === k) movementKeys.right = true;
 
-  if(["arrowup","arrowdown","arrowleft","arrowright"].includes(k) && document.getElementById('room').classList.contains('active')) {
+  if(["arrowup","arrowdown","arrowleft","arrowright"].includes(k) && (document.getElementById('room').classList.contains('active') || document.getElementById('park').classList.contains('active'))) {
     e.preventDefault();
   }
   if (k === 'r') rotateCurrentFurniture();
@@ -1508,6 +1571,7 @@ window.addEventListener('keyup', (e) => {
 
 function init3DRoom() {
   if (roomAnimationId) cancelAnimationFrame(roomAnimationId);
+  if (parkAnimationId) cancelAnimationFrame(parkAnimationId);
 
   setTimeout(() => {
     const container = document.getElementById('roomCanvasContainer');
@@ -1526,7 +1590,7 @@ function init3DRoom() {
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
       <div class="trash-drop-zone" id="trashDropZone">🗑️ Drop here to Store</div>
       <div class="room-top-controls">
-        <button class="btn secondary" onclick="resetRoomView()" style="padding:4px 8px;font-size:11px" title="Reset to Regular Corner View">🏠 Reset View</button>
+        <button class="btn secondary" onclick="resetRoomView()" style="padding:4px 8px;font-size:11px" title="Reset View">🏠 Reset View</button>
         <button class="btn secondary" onclick="zoomRoom(0.8)" style="padding:4px 8px;font-size:12px">+</button>
         <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
         <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
@@ -1539,7 +1603,6 @@ function init3DRoom() {
       </div>
     `;
 
-    // Initialize Virtual Analog Joystick Touch/Mouse Logic
     const joystickBase = document.getElementById('joystickBase');
     const joystickKnob = document.getElementById('joystickKnob');
     let joystickActive = false;
@@ -1694,7 +1757,6 @@ function init3DRoom() {
     }
     updateWallVisibility();
 
-    // Cat walking movement, walking bob/tilt animation, and surface height detection (walking on top of furniture)
     let saveDebounceTimer = null;
     let walkCycle = 0;
     
@@ -1728,13 +1790,11 @@ function init3DRoom() {
         let newX = Math.max(-bound, Math.min(bound, catMeshReference.position.x + moveDir.x * speed));
         let newZ = Math.max(-bound, Math.min(bound, catMeshReference.position.z + moveDir.z * speed));
 
-        // Raycast downwards or check furniture bounding boxes to let cat walk on top of items
         let targetSurfaceY = 0;
         furnitureMeshes.forEach(other => {
           if (other !== catMeshReference && !other.userData.isWallItem && other.userData.surfaceHeight !== undefined) {
             let dx = Math.abs(other.position.x - newX);
             let dz = Math.abs(other.position.z - newZ);
-            // Check if cat is over a furniture top surface
             if (dx < 1.1 && dz < 0.9) {
               targetSurfaceY = other.userData.surfaceHeight;
             }
@@ -1744,14 +1804,13 @@ function init3DRoom() {
         catMeshReference.position.x = newX;
         catMeshReference.position.z = newZ;
 
-        // Apply walking bob (up/down) and tilt animation
         walkCycle += 0.25;
         let bobY = targetSurfaceY + Math.abs(Math.sin(walkCycle)) * 0.06;
         catMeshReference.position.y = bobY;
 
         let targetAngle = Math.atan2(moveDir.x, moveDir.z);
         catMeshReference.rotation.y = targetAngle;
-        catMeshReference.rotation.z = Math.sin(walkCycle) * 0.08; // Gentle side-to-side waddle tilt
+        catMeshReference.rotation.z = Math.sin(walkCycle) * 0.08;
 
         if (!userData.positions.cat) userData.positions.cat = { x: 0, y: 0, z: 0, rot: 0 };
         userData.positions.cat.x = catMeshReference.position.x;
@@ -1762,7 +1821,6 @@ function init3DRoom() {
         clearTimeout(saveDebounceTimer);
         saveDebounceTimer = setTimeout(() => { commitCloud(); }, 800);
       } else {
-        // Return cat to resting position level when not walking
         walkCycle = 0;
         let restingY = 0;
         furnitureMeshes.forEach(other => {
@@ -1808,7 +1866,7 @@ function init3DRoom() {
     }
 
     function handleStart(e) {
-      if(e.target.closest('#joystickBase')) return; // Ignore if interacting with joystick
+      if(e.target.closest('#joystickBase')) return;
       updatePointer(e);
       let clientX = e.touches ? e.touches[0].clientX : e.clientX;
       let clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -1967,6 +2025,267 @@ function init3DRoom() {
       renderer.render(scene, camera);
     }
     animate();
+  }, 100);
+}
+
+// RANDOM PARK GENERATOR & LITTER COLLECTION LOGIC
+function generateNewPark() {
+  parkTrashItems = [];
+  for(let i=0; i<5; i++) {
+    parkTrashItems.push({
+      x: (Math.random() * 5.0) - 2.5,
+      z: (Math.random() * 5.0) - 2.5,
+      collected: false,
+      type: i % 3 // 0: can, 1: bottle, 2: plastic cup
+    });
+  }
+  let countEl = document.getElementById('litterCountDisplay');
+  if(countEl) countEl.textContent = "5 / 5";
+  toast('Generated a new park with 5 pieces of litter! 🌳🗑️');
+  initPark();
+}
+
+function initPark() {
+  if (roomAnimationId) cancelAnimationFrame(roomAnimationId);
+  if (parkAnimationId) cancelAnimationFrame(parkAnimationId);
+
+  setTimeout(() => {
+    const container = document.getElementById('parkCanvasContainer');
+    if (!container) return;
+
+    let width = container.clientWidth || 600;
+    let height = container.clientHeight || 420;
+    let parkSize = 8;
+
+    container.innerHTML = `
+      <div class="room-instructions">🌳 Walk Cat 🐈 over litter pieces to pick them up (+1 coin each)!</div>
+      <div class="room-top-controls">
+        <button class="btn secondary" onclick="resetParkView()" style="padding:4px 8px;font-size:11px">🏠 Reset View</button>
+      </div>
+      
+      <!-- Virtual Analog Joystick for Park -->
+      <div class="joystick-container" id="parkJoystickBase">
+        <div class="joystick-knob" id="parkJoystickKnob"></div>
+      </div>
+    `;
+
+    const joystickBase = document.getElementById('parkJoystickBase');
+    const joystickKnob = document.getElementById('parkJoystickKnob');
+    let parkJoystickActive = false;
+    let parkJoystickCenter = { x: 0, y: 0 };
+    const maxRadius = 32;
+
+    function handleParkJoystickStart(clientX, clientY) {
+      parkJoystickActive = true;
+      let rect = joystickBase.getBoundingClientRect();
+      parkJoystickCenter.x = rect.left + rect.width / 2;
+      parkJoystickCenter.y = rect.top + rect.height / 2;
+      updateParkJoystickMove(clientX, clientY);
+    }
+
+    function updateParkJoystickMove(clientX, clientY) {
+      if (!parkJoystickActive) return;
+      let dx = clientX - parkJoystickCenter.x;
+      let dy = clientY - parkJoystickCenter.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > maxRadius) {
+        dx = (dx / dist) * maxRadius;
+        dy = (dy / dist) * maxRadius;
+      }
+      joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+      joystickVector.x = dx / maxRadius;
+      joystickVector.y = dy / maxRadius;
+    }
+
+    function handleParkJoystickEnd() {
+      parkJoystickActive = false;
+      joystickVector.x = 0;
+      joystickVector.y = 0;
+      joystickKnob.style.transform = `translate(0px, 0px)`;
+    }
+
+    if(joystickBase) {
+      joystickBase.addEventListener('mousedown', (e) => { handleParkJoystickStart(e.clientX, e.clientY); e.stopPropagation(); });
+      window.addEventListener('mousemove', (e) => { if(parkJoystickActive) updateParkJoystickMove(e.clientX, e.clientY); });
+      window.addEventListener('mouseup', () => { if(parkJoystickActive) handleParkJoystickEnd(); });
+
+      joystickBase.addEventListener('touchstart', (e) => { handleParkJoystickStart(e.touches[0].clientX, e.touches[0].clientY); e.stopPropagation(); }, {passive:true});
+      window.addEventListener('touchmove', (e) => { if(parkJoystickActive && e.touches.length > 0) updateParkJoystickMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+      window.addEventListener('touchend', () => { if(parkJoystickActive) handleParkJoystickEnd(); });
+    }
+
+    if (parkTrashItems.length === 0) {
+      for(let i=0; i<5; i++) {
+        parkTrashItems.push({
+          x: (Math.random() * 5.0) - 2.5,
+          z: (Math.random() * 5.0) - 2.5,
+          collected: false,
+          type: i % 3
+        });
+      }
+    }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d1926);
+
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    
+    function updateParkCamera() {
+      let camX = parkCamDist * Math.sin(parkCameraAngleY) * Math.cos(parkCameraAngleX);
+      let camY = parkCamDist * Math.sin(parkCameraAngleX);
+      let camZ = parkCamDist * Math.cos(parkCameraAngleY) * Math.cos(parkCameraAngleX);
+      camera.position.set(camX, Math.max(1.0, camY), camZ);
+      camera.lookAt(0, 0.5, 0);
+    }
+    updateParkCamera();
+
+    const renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(width, height);
+    container.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xddeeff, 0.8));
+    const sunLight = new THREE.DirectionalLight(0xfffaed, 1.0);
+    sunLight.position.set(8, 16, 8);
+    scene.add(sunLight);
+
+    // Grass Park Ground
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(parkSize, parkSize),
+      new THREE.MeshStandardMaterial({color: 0x2e6b3e, roughness: 0.8})
+    );
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // Random Trees & Benches in Park
+    for(let i=0; i<6; i++) {
+      let tx = (Math.random() * 6.0) - 3.0;
+      let tz = (Math.random() * 6.0) - 3.0;
+      if(Math.abs(tx) < 1.5 && Math.abs(tz) < 1.5) continue; // Keep center clear
+
+      const treeGroup = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.2), new THREE.MeshStandardMaterial({color: 0x5c4033}));
+      trunk.position.y = 0.6;
+      treeGroup.add(trunk);
+      const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.7, 8, 8), new THREE.MeshStandardMaterial({color: 0x1e5631}));
+      leaves.position.y = 1.4;
+      treeGroup.add(leaves);
+      treeGroup.position.set(tx, 0, tz);
+      scene.add(treeGroup);
+    }
+
+    // Render Park Cat Companion
+    parkCatMesh = createItemModel('cat', parseInt(userData.catColor || '0xffa500'), userData);
+    parkCatMesh.position.set(0, 0, 0);
+    scene.add(parkCatMesh);
+
+    // Render 5 pieces of trash
+    const trashMeshGroup = [];
+    parkTrashItems.forEach((t, idx) => {
+      if(t.collected) return;
+      const tGroup = new THREE.Group();
+      let tMesh;
+      if(t.type === 0) {
+        // Can
+        tMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3), new THREE.MeshStandardMaterial({color: 0xd2f567, metalness: 0.8}));
+      } else if(t.type === 1) {
+        // Bottle
+        tMesh = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 8), new THREE.MeshStandardMaterial({color: 0x67e8f0, transparent: true, opacity: 0.8}));
+      } else {
+        // Plastic wrapper / cup
+        tMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.2), new THREE.MeshStandardMaterial({color: 0xffffff}));
+      }
+      tMesh.position.y = 0.15;
+      tGroup.add(tMesh);
+      tGroup.position.set(t.x, 0, t.z);
+      tGroup.userData = { index: idx };
+      scene.add(tGroup);
+      trashMeshGroup.push(tGroup);
+    });
+
+    let parkWalkCycle = 0;
+
+    function updateParkLoop() {
+      parkAnimationId = requestAnimationFrame(updateParkLoop);
+
+      let moveX = 0, moveZ = 0;
+      if (movementKeys.up)    moveZ -= 1;
+      if (movementKeys.down)  moveZ += 1;
+      if (movementKeys.left)  moveX -= 1;
+      if (movementKeys.right) moveX += 1;
+
+      if (joystickVector.x !== 0 || joystickVector.y !== 0) {
+        moveX += joystickVector.x;
+        moveZ += joystickVector.y;
+      }
+
+      if (moveX !== 0 || moveZ !== 0) {
+        let forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), parkCameraAngleY);
+        let right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), parkCameraAngleY);
+        
+        let moveDir = new THREE.Vector3()
+          .addScaledVector(forward, -moveZ)
+          .addScaledVector(right, moveX);
+        
+        if(moveDir.length() > 1) moveDir.normalize();
+
+        const speed = 0.07;
+        const bound = (parkSize / 2) - 0.4;
+
+        let newX = Math.max(-bound, Math.min(bound, parkCatMesh.position.x + moveDir.x * speed));
+        let newZ = Math.max(-bound, Math.min(bound, parkCatMesh.position.z + moveDir.z * speed));
+
+        parkCatMesh.position.x = newX;
+        parkCatMesh.position.z = newZ;
+
+        parkWalkCycle += 0.25;
+        parkCatMesh.position.y = Math.abs(Math.sin(parkWalkCycle)) * 0.06;
+        parkCatMesh.rotation.y = Math.atan2(moveDir.x, moveDir.z);
+
+        // Check if cat touches any trash
+        parkTrashItems.forEach((t, idx) => {
+          if(!t.collected) {
+            let dist = Math.hypot(parkCatMesh.position.x - t.x, parkCatMesh.position.z - t.z);
+            if(dist < 0.5) {
+              t.collected = true;
+              userData.coins += 1;
+              commitCloud();
+              playSoundFX(950, 'square', 0.12);
+              toast('Picked up litter! +1 🪙 Coin earned!');
+              
+              let remaining = parkTrashItems.filter(item => !item.collected).length;
+              let countEl = document.getElementById('litterCountDisplay');
+              if(countEl) countEl.textContent = remaining + " / 5";
+
+              // Re-render park to remove collected item
+              initPark();
+            }
+          }
+        });
+      } else {
+        parkWalkCycle = 0;
+        parkCatMesh.position.y += (0 - parkCatMesh.position.y) * 0.2;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    let isParkOrbiting = false;
+    let prevMouseX = 0, prevMouseY = 0;
+    const dom = renderer.domElement;
+
+    dom.addEventListener('mousedown', (e) => { isParkOrbiting = true; prevMouseX = e.clientX; prevMouseY = e.clientY; });
+    window.addEventListener('mousemove', (e) => {
+      if(!isParkOrbiting) return;
+      let deltaX = e.clientX - prevMouseX;
+      let deltaY = e.clientY - prevMouseY;
+      prevMouseX = e.clientX; prevMouseY = e.clientY;
+      parkCameraAngleY -= deltaX * 0.008;
+      parkCameraAngleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, parkCameraAngleX + deltaY * 0.008));
+      updateParkCamera();
+    });
+    window.addEventListener('mouseup', () => { isParkOrbiting = false; });
+
+    updateParkLoop();
   }, 100);
 }
 
@@ -2243,4 +2562,3 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-```[cite: 5, 6]
