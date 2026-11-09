@@ -216,17 +216,17 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room (7x7)</h3>
         <div style="display:flex;gap:8px">
-          <select class="field" id="activeWallpaperSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeRoomWallpaper(this.value)">
-            <option value="0x16261e">Dark Green Wall</option>
-            <option value="0x253b4c">Navy Wall</option>
-            <option value="0x3b2b23">Dark Brick Wall</option>
-            <option value="0xdcdcdc">Pastel Gray Wall</option>
+          <select class="field" id="activeWallSelect" style="margin:0;padding:6px 10px;font-size:12px;width:110px" onchange="changeActiveWall(this.value)">
+            <option value="back">Back Wall</option>
+            <option value="left">Left Wall</option>
+            <option value="right">Right Wall</option>
+            <option value="front">Front Wall</option>
           </select>
-          <select class="field" id="activeFlooringSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeRoomFlooring(this.value)">
-            <option value="0x1d3026">Green Floor</option>
-            <option value="0x5c4033">Wood Floor</option>
-            <option value="0x222222">Checkerboard Tile</option>
-            <option value="0x384759">Mint Carpet</option>
+          <select class="field" id="activeWallpaperSelect" style="margin:0;padding:6px 10px;font-size:12px;width:120px" onchange="changeRoomWallpaper(this.value)">
+            <option value="0x16261e">Dark Green</option>
+            <option value="0x253b4c">Navy Wall</option>
+            <option value="0x3b2b23">Dark Brick</option>
+            <option value="0xdcdcdc">Pastel Gray</option>
           </select>
         </div>
       </div>
@@ -234,11 +234,12 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
         <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
         <div class="trash-drop-zone" id="trashDropZone">🗑️ Drop here to Store</div>
         <div class="room-top-controls">
+          <button class="btn secondary" onclick="resetRoomView()" style="padding:4px 8px;font-size:11px" title="Reset to Regular Corner View">🏠 Reset View</button>
           <button class="btn secondary" onclick="zoomRoom(0.8)" style="padding:4px 8px;font-size:12px">+</button>
           <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
           <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
         </div>
-        <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Drag to Trash to store away</div>
+        <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit/Pan view · Click object to move · Drag to Trash to store</div>
       </div>
     </div>
 
@@ -254,13 +255,14 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="friendRoomHeaderTitle" style="margin:0">👀 Visiting Friend's Room</h3>
         <div style="display:flex;gap:8px">
+          <button class="btn secondary" onclick="resetFriendRoomView()" style="padding:4px 8px;font-size:11px">🏠 Reset View</button>
           <button class="btn secondary" onclick="zoomFriendRoom(0.8)" style="padding:4px 8px;font-size:12px">+</button>
           <button class="btn secondary" onclick="zoomFriendRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
           <button class="btn secondary" style="padding:6px 12px;font-size:12px" onclick="backToMyRoomTab()">RETURN TO MY ROOM</button>
         </div>
       </div>
       <div id="friendRoomCanvasContainer">
-        <div class="room-instructions">👀 Visiting Room Mode · Interactive edit disabled</div>
+        <div class="room-instructions">👀 Visiting Room Mode · Drag to Orbit/Pan view</div>
       </div>
       <div id="friendSpotifyContainer" class="spotify-container" style="display:none"></div>
     </div>
@@ -388,7 +390,7 @@ let userData = {
     gaming_pc:{x:1.2,y:0.8,z:0,rot:0},
     snake_plant:{x:-1.2,y:0,z:0,rot:0}
   },
-  wallpaper: '0x16261e',
+  wallpapers: { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' },
   flooring: '0x1d3026',
   steps: 0,
   name: '',
@@ -412,7 +414,13 @@ let visitingFriendData = null;
 let viewingProfileUid = null;
 
 let currentCamDist = 6.8;
+let currentCameraAngleX = Math.PI / 4;
+let currentCameraAngleY = Math.PI / 4;
+let activeCustomizeWall = 'back';
+
 let friendCamDist = 6.8;
+let friendCameraAngleX = Math.PI / 4;
+let friendCameraAngleY = Math.PI / 4;
 
 function zoomRoom(factor) {
   currentCamDist = Math.max(3.5, Math.min(14, currentCamDist * factor));
@@ -422,6 +430,34 @@ function zoomRoom(factor) {
 function zoomFriendRoom(factor) {
   friendCamDist = Math.max(3.5, Math.min(14, friendCamDist * factor));
   initFriend3DRoom();
+}
+
+function resetRoomView() {
+  currentCamDist = 6.8;
+  currentCameraAngleX = Math.PI / 4;
+  currentCameraAngleY = Math.PI / 4;
+  init3DRoom();
+}
+
+function resetFriendRoomView() {
+  friendCamDist = 6.8;
+  friendCameraAngleX = Math.PI / 4;
+  friendCameraAngleY = Math.PI / 4;
+  initFriend3DRoom();
+}
+
+function changeActiveWall(wallName) {
+  activeCustomizeWall = wallName;
+  if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+  document.getElementById('activeWallpaperSelect').value = userData.wallpapers[wallName] || '0x16261e';
+}
+
+function changeRoomWallpaper(val) {
+  if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+  userData.wallpapers[activeCustomizeWall] = val;
+  commitCloud();
+  init3DRoom();
+  toast(activeCustomizeWall.toUpperCase() + ' wall wallpaper updated!');
 }
 
 function toggleWalkMode() {
@@ -575,7 +611,7 @@ function setupCloudListeners() {
       userData.owned = sourceObj.owned || userData.owned;
       userData.placed = sourceObj.placed || userData.owned;
       userData.positions = sourceObj.positions || userData.positions;
-      userData.wallpaper = sourceObj.wallpaper || userData.wallpaper;
+      userData.wallpapers = sourceObj.wallpapers || userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
       userData.flooring = sourceObj.flooring || userData.flooring;
       userData.steps = sourceObj.steps !== undefined ? sourceObj.steps : userData.steps;
       userData.name = sourceObj.name || userData.name;
@@ -647,7 +683,7 @@ function commitCloud() {
     owned: userData.owned,
     placed: userData.placed,
     positions: userData.positions,
-    wallpaper: userData.wallpaper,
+    wallpapers: userData.wallpapers,
     flooring: userData.flooring,
     steps: userData.steps,
     name: userData.name,
@@ -919,11 +955,12 @@ function buy(id) {
   if(!userData.owned.includes(id)) userData.owned.push(id);
   
   if(p.isWallpaper) {
-    userData.wallpaper = p.colorValue;
+    if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    userData.wallpapers[activeCustomizeWall] = p.colorValue;
     commitCloud();
     render();
     init3DRoom();
-    toast('Applied ' + p.name + ' wallpaper!');
+    toast('Applied ' + p.name + ' to ' + activeCustomizeWall + ' wall!');
     return;
   }
   if(p.isFlooring) {
@@ -959,11 +996,12 @@ function storeItem(id) {
 function placeItem(id) {
   let pDef = products.find(p => p.id === id);
   if(pDef && pDef.isWallpaper) {
-    userData.wallpaper = pDef.colorValue;
+    if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    userData.wallpapers[activeCustomizeWall] = pDef.colorValue;
     commitCloud();
     render();
     init3DRoom();
-    toast('Applied wallpaper!');
+    toast('Applied wallpaper to ' + activeCustomizeWall + ' wall!');
     return;
   }
   if(pDef && pDef.isFlooring) {
@@ -987,13 +1025,6 @@ function placeItem(id) {
   render();
   init3DRoom();
   toast('Placed item into room! 🏡');
-}
-
-function changeRoomWallpaper(val) {
-  userData.wallpaper = val;
-  commitCloud();
-  init3DRoom();
-  toast('Wallpaper updated!');
 }
 
 function changeRoomFlooring(val) {
@@ -1308,26 +1339,35 @@ function init3DRoom() {
     let height = container.clientHeight || 420;
     let roomSize = 7;
 
-    document.getElementById('activeWallpaperSelect').value = userData.wallpaper || '0x16261e';
-    document.getElementById('activeFlooringSelect').value = userData.flooring || '0x1d3026';
+    let wallColors = userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    document.getElementById('activeWallSelect').value = activeCustomizeWall;
+    document.getElementById('activeWallpaperSelect').value = wallColors[activeCustomizeWall] || '0x16261e';
 
     container.innerHTML = `
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
       <div class="trash-drop-zone" id="trashDropZone">🗑️ Drop here to Store</div>
       <div class="room-top-controls">
+        <button class="btn secondary" onclick="resetRoomView()" style="padding:4px 8px;font-size:11px">🏠 Reset View</button>
         <button class="btn secondary" onclick="zoomRoom(0.8)" style="padding:4px 8px;font-size:12px">+</button>
         <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
         <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
       </div>
-      <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Drag to Trash to store away</div>
+      <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit/Pan view · Click object to move · Drag to Trash to store</div>
     `;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x13221a);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(currentCamDist, currentCamDist * 0.8, currentCamDist);
-    camera.lookAt(0, 0.8, 0);
+    
+    function updateCameraPosition() {
+      let camX = currentCamDist * Math.sin(currentCameraAngleY) * Math.cos(currentCameraAngleX);
+      let camY = currentCamDist * Math.sin(currentCameraAngleX);
+      let camZ = currentCamDist * Math.cos(currentCameraAngleY) * Math.cos(currentCameraAngleX);
+      camera.position.set(camX, Math.max(0.8, camY), camZ);
+      camera.lookAt(0, 0.8, 0);
+    }
+    updateCameraPosition();
 
     const renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(width, height);
@@ -1346,18 +1386,37 @@ function init3DRoom() {
     grid.position.y = 0.01;
     scene.add(grid);
 
-    let wallColor = parseInt(userData.wallpaper || '0x16261e');
-    const wallMat = new THREE.MeshStandardMaterial({color: wallColor, roughness: 0.8});
     const halfSize = roomSize / 2;
 
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
+    const backMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.back || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
+    const leftMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.left || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
+    const rightMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.right || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
+    const frontMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.front || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
+
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), backMat);
     backWall.position.set(0, 3, -halfSize);
+    backWall.userData = { wallName: 'back' };
     scene.add(backWall);
 
-    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), leftMat);
     leftWall.position.set(-halfSize, 3, 0);
     leftWall.rotation.y = Math.PI / 2;
+    leftWall.userData = { wallName: 'left' };
     scene.add(leftWall);
+
+    const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), rightMat);
+    rightWall.position.set(halfSize, 3, 0);
+    rightWall.rotation.y = -Math.PI / 2;
+    rightWall.userData = { wallName: 'right' };
+    scene.add(rightWall);
+
+    const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), frontMat);
+    frontWall.position.set(0, 3, halfSize);
+    frontWall.rotation.y = Math.PI;
+    frontWall.userData = { wallName: 'front' };
+    scene.add(frontWall);
+
+    const walls = [backWall, leftWall, rightWall, frontWall];
 
     const furnitureMeshes = [];
     let itemsToRender = userData.placed || userData.owned;
@@ -1375,13 +1434,32 @@ function init3DRoom() {
         const group = createItemModel(id, 0xffa500, userData);
         group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
         group.rotation.y = pos.rot || 0;
-        group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight };
+        group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight, wall: pos.wall };
         scene.add(group);
         furnitureMeshes.push(group);
       });
     }
 
+    function updateWallVisibility() {
+      walls.forEach(w => {
+        let wNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(w.quaternion);
+        let camDir = new THREE.Vector3().subVectors(camera.position, w.position).normalize();
+        let dot = wNormal.dot(camDir);
+        let isBehind = dot > 0.05;
+        w.visible = !isBehind;
+        
+        furnitureMeshes.forEach(fm => {
+          if (fm.userData.wall && fm.userData.wall === w.userData.wallName) {
+            fm.visible = !isBehind;
+          }
+        });
+      });
+    }
+    updateWallVisibility();
+
     let isDragging = false;
+    let isOrbiting = false;
+    let prevMouseX = 0, prevMouseY = 0;
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     const dom = renderer.domElement;
@@ -1411,20 +1489,28 @@ function init3DRoom() {
 
     function handleStart(e) {
       updatePointer(e);
+      let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      prevMouseX = clientX;
+      prevMouseY = clientY;
+
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(scene.children, true);
       let clicked = null;
       for (let hit of intersects) {
         let obj = hit.object;
+        if (obj.geometry && obj.geometry.type === 'PlaneGeometry') continue; // Skip walls/floor
         while (obj.parent && obj.parent !== scene) {
           if (furnitureMeshes.includes(obj)) break;
           obj = obj.parent;
         }
         if (furnitureMeshes.includes(obj)) { clicked = obj; break; }
       }
+
       furnitureMeshes.forEach(m => { let r = m.getObjectByName('ring'); if (r) r.visible = false; });
       if (clicked) {
         isDragging = true;
+        isOrbiting = false;
         activeSelectedFurniture = clicked;
         let r = clicked.getObjectByName('ring');
         if (r) r.visible = true;
@@ -1434,6 +1520,8 @@ function init3DRoom() {
         }
         if(trashZone) trashZone.style.display = 'block';
       } else {
+        isDragging = false;
+        isOrbiting = true;
         activeSelectedFurniture = null;
         if(banner) banner.style.display = 'none';
         if(trashZone) trashZone.style.display = 'none';
@@ -1441,6 +1529,21 @@ function init3DRoom() {
     }
 
     function handleMove(e) {
+      let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      let deltaX = clientX - prevMouseX;
+      let deltaY = clientY - prevMouseY;
+      prevMouseX = clientX;
+      prevMouseY = clientY;
+
+      if (isOrbiting) {
+        currentCameraAngleY -= deltaX * 0.008;
+        currentCameraAngleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, currentCameraAngleX + deltaY * 0.008));
+        updateCameraPosition();
+        updateWallVisibility();
+        return;
+      }
+
       if (!isDragging || !activeSelectedFurniture) return;
       updatePointer(e);
       raycaster.setFromCamera(mouse, camera);
@@ -1452,18 +1555,31 @@ function init3DRoom() {
       if (pDef && pDef.isWallItem) {
         let backIntersect = new THREE.Vector3();
         let leftIntersect = new THREE.Vector3();
+        let rightIntersect = new THREE.Vector3();
+        let frontIntersect = new THREE.Vector3();
+
         raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1), limit), backIntersect);
         raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(1,0,0), limit), leftIntersect);
+        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(-1,0,0), limit), rightIntersect);
+        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,-1), limit), frontIntersect);
 
-        if (Math.abs(leftIntersect.z) < Math.abs(backIntersect.x)) {
+        let minDist = Math.min(Math.abs(backIntersect.z), Math.abs(leftIntersect.x), Math.abs(rightIntersect.x), Math.abs(frontIntersect.z));
+
+        if (minDist === Math.abs(frontIntersect.z)) {
+          activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, frontIntersect.x)), Math.max(1, Math.min(5, frontIntersect.y)), limit);
+          activeSelectedFurniture.rotation.y = Math.PI;
+          userData.positions[pDef.id].wall = 'front';
+        } else if (minDist === Math.abs(rightIntersect.x)) {
+          activeSelectedFurniture.position.set(limit, Math.max(1, Math.min(5, rightIntersect.y)), Math.max(-bound, Math.min(bound, rightIntersect.z)));
+          activeSelectedFurniture.rotation.y = -Math.PI / 2;
+          userData.positions[pDef.id].wall = 'right';
+        } else if (minDist === Math.abs(leftIntersect.x)) {
           activeSelectedFurniture.position.set(-limit, Math.max(1, Math.min(5, leftIntersect.y)), Math.max(-bound, Math.min(bound, leftIntersect.z)));
           activeSelectedFurniture.rotation.y = Math.PI / 2;
-          if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
           userData.positions[pDef.id].wall = 'left';
         } else {
           activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, backIntersect.x)), Math.max(1, Math.min(5, backIntersect.y)), -limit);
           activeSelectedFurniture.rotation.y = 0;
-          if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
           userData.positions[pDef.id].wall = 'back';
         }
       } else {
@@ -1509,6 +1625,7 @@ function init3DRoom() {
         }
         if(banner) banner.style.display = 'none';
       }
+      isOrbiting = false;
     }
 
     dom.addEventListener('mousedown', handleStart);
@@ -1533,15 +1650,22 @@ function initFriend3DRoom() {
     let targetData = visitingFriendData;
 
     container.innerHTML = `
-      <div class="room-instructions">👀 Visiting Room Mode · Interactive edit disabled</div>
+      <div class="room-instructions">👀 Visiting Room Mode · Drag to Orbit/Pan view</div>
     `;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x13221a);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(friendCamDist, friendCamDist * 0.8, friendCamDist);
-    camera.lookAt(0, 0.8, 0);
+    
+    function updateFriendCamera() {
+      let camX = friendCamDist * Math.sin(friendCameraAngleY) * Math.cos(friendCameraAngleX);
+      let camY = friendCamDist * Math.sin(friendCameraAngleX);
+      let camZ = friendCamDist * Math.cos(friendCameraAngleY) * Math.cos(friendCameraAngleX);
+      camera.position.set(camX, Math.max(0.8, camY), camZ);
+      camera.lookAt(0, 0.8, 0);
+    }
+    updateFriendCamera();
 
     const renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(width, height);
@@ -1560,18 +1684,34 @@ function initFriend3DRoom() {
     grid.position.y = 0.01;
     scene.add(grid);
 
-    let wallColor = parseInt(targetData.wallpaper || '0x16261e');
-    const wallMat = new THREE.MeshStandardMaterial({color: wallColor, roughness: 0.8});
     const halfSize = roomSize / 2;
+    let wallColors = targetData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
 
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), new THREE.MeshStandardMaterial({color: parseInt(wallColors.back || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide}));
     backWall.position.set(0, 3, -halfSize);
+    backWall.userData = { wallName: 'back' };
     scene.add(backWall);
 
-    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), new THREE.MeshStandardMaterial({color: parseInt(wallColors.left || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide}));
     leftWall.position.set(-halfSize, 3, 0);
     leftWall.rotation.y = Math.PI / 2;
+    leftWall.userData = { wallName: 'left' };
     scene.add(leftWall);
+
+    const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), new THREE.MeshStandardMaterial({color: parseInt(wallColors.right || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide}));
+    rightWall.position.set(halfSize, 3, 0);
+    rightWall.rotation.y = -Math.PI / 2;
+    rightWall.userData = { wallName: 'right' };
+    scene.add(rightWall);
+
+    const frontWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), new THREE.MeshStandardMaterial({color: parseInt(wallColors.front || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide}));
+    frontWall.position.set(0, 3, halfSize);
+    frontWall.rotation.y = Math.PI;
+    frontWall.userData = { wallName: 'front' };
+    scene.add(frontWall);
+
+    const walls = [backWall, leftWall, rightWall, frontWall];
+    const friendFurniture = [];
 
     let itemsToRender = targetData.placed || targetData.owned;
     if (targetData && itemsToRender) {
@@ -1588,9 +1728,45 @@ function initFriend3DRoom() {
         const group = createItemModel(id, 0xffa500, targetData);
         group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
         group.rotation.y = pos.rot || 0;
+        group.userData = { wall: pos.wall };
         scene.add(group);
+        friendFurniture.push(group);
       });
     }
+
+    function updateFriendWallVisibility() {
+      walls.forEach(w => {
+        let wNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(w.quaternion);
+        let camDir = new THREE.Vector3().subVectors(camera.position, w.position).normalize();
+        let dot = wNormal.dot(camDir);
+        let isBehind = dot > 0.05;
+        w.visible = !isBehind;
+        
+        friendFurniture.forEach(fm => {
+          if (fm.userData.wall && fm.userData.wall === w.userData.wallName) {
+            fm.visible = !isBehind;
+          }
+        });
+      });
+    }
+    updateFriendWallVisibility();
+
+    let isOrbiting = false;
+    let prevMouseX = 0, prevMouseY = 0;
+    const dom = renderer.domElement;
+
+    dom.addEventListener('mousedown', (e) => { isOrbiting = true; prevMouseX = e.clientX; prevMouseY = e.clientY; });
+    window.addEventListener('mousemove', (e) => {
+      if(!isOrbiting) return;
+      let deltaX = e.clientX - prevMouseX;
+      let deltaY = e.clientY - prevMouseY;
+      prevMouseX = e.clientX; prevMouseY = e.clientY;
+      friendCameraAngleY -= deltaX * 0.008;
+      friendCameraAngleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, friendCameraAngleX + deltaY * 0.008));
+      updateFriendCamera();
+      updateFriendWallVisibility();
+    });
+    window.addEventListener('mouseup', () => { isOrbiting = false; });
 
     (function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); })();
   }, 100);
@@ -1694,7 +1870,8 @@ function render() {
   }
 
   document.getElementById('shopgrid').innerHTML = products.map(p => {
-    let isOwnedWallpaperOrFlooring = (p.isWallpaper && userData.wallpaper === p.colorValue) || (p.isFlooring && userData.flooring === p.colorValue);
+    let wallColors = userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    let isOwnedWallpaperOrFlooring = (p.isWallpaper && wallColors[activeCustomizeWall] === p.colorValue) || (p.isFlooring && userData.flooring === p.colorValue);
     return `
       <div class="shopitem">
         <b>${p.name}</b><small>${p.price} 🪙</small>
