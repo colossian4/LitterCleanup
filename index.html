@@ -29,7 +29,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:16px;ma
 .header-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .audio-btn,.walk-btn{background:#1f3328;border:1px solid var(--line);color:var(--lime);padding:8px 12px;border-radius:10px;font:12px 'DM Mono';font-weight:700;transition:.2s ease}
 body.walk-mode .audio-btn,body.walk-mode .walk-btn{background:#233e5c;border-color:#3a618c}
-.wallet{background:#0e1713;border:1px solid var(--line);padding:8px 16px;border-radius:10px;font:14px 'DM Mono';color:var(--lime);white-space:nowrap}
+.coin-icon{width:18px;height:18px;display:inline-block;vertical-align:middle;margin-right:2px}
+.wallet{background:#0e1713;border:1px solid var(--line);padding:8px 16px;border-radius:10px;font:14px 'DM Mono';color:var(--lime);white-space:nowrap;display:flex;align-items:center;gap:6px}
 .header-spotify-widget{background:#0e1713;border:1px solid var(--line);border-radius:12px;padding:4px;display:flex;align-items:center;height:88px;overflow:hidden}
 
 .layout{display:grid;grid-template-columns:220px 1fr;gap:20px}.sidebar,.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 8px 0 var(--shadow)}
@@ -138,7 +139,14 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <div class="header-right">
     <button class="walk-btn" id="walkToggle" onclick="toggleWalkMode()">🌲 ON A WALK</button>
     <button class="audio-btn" id="audioToggle" onclick="toggleAudio()">🎵 8-BIT MUSIC: OFF</button>
-    <div class="wallet">🪙 <b id="coins">500</b> COINS</div>
+    <div class="wallet">
+      <svg class="coin-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="#FBBF24" stroke="#D97706" stroke-width="2"/>
+        <circle cx="12" cy="12" r="7" fill="#FCD34D"/>
+        <text x="12" y="16" font-family="Nunito, sans-serif" font-weight="900" font-size="11" fill="#92400E" text-anchor="middle">C</text>
+      </svg>
+      <b id="coins">500</b> COINS
+    </div>
   </div>
 </header>
 
@@ -218,20 +226,27 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
   <section class="view" id="room">
     <div class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room (7x7)</h3>
-        <div style="display:flex;gap:8px">
-          <select class="field" id="activeWallSelect" style="margin:0;padding:6px 10px;font-size:12px;width:110px" onchange="changeActiveWall(this.value)">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select class="field" id="activeWallSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeActiveWall(this.value)">
+            <option value="all">ALL Walls 🌟</option>
             <option value="back">Back Wall</option>
             <option value="left">Left Wall</option>
             <option value="right">Right Wall</option>
             <option value="front">Front Wall</option>
           </select>
-          <select class="field" id="activeWallpaperSelect" style="margin:0;padding:6px 10px;font-size:12px;width:120px" onchange="changeRoomWallpaper(this.value)">
-            <option value="0x16261e">Dark Green</option>
-            <option value="0x253b4c">Navy Wall</option>
-            <option value="0x3b2b23">Dark Brick</option>
-            <option value="0xdcdcdc">Pastel Gray</option>
+          <select class="field" id="activeWallpaperSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeRoomWallpaper(this.value)">
+            <option value="0x16261e">Dark Green Paint</option>
+            <option value="0x253b4c">Navy Wall Paint</option>
+            <option value="0x3b2b23">Dark Brick Wall</option>
+            <option value="0xdcdcdc">Pastel Gray Wall</option>
+          </select>
+          <select class="field" id="activeFlooringSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeRoomFlooring(this.value)">
+            <option value="0x1d3026">Dark Mint Floor</option>
+            <option value="0x5c4033">Classic Wood Floor</option>
+            <option value="0x222222">Checkerboard Tile</option>
+            <option value="0x384759">Mint Carpet</option>
           </select>
         </div>
       </div>
@@ -421,7 +436,7 @@ let viewingProfileUid = null;
 let currentCamDist = 6.8;
 let currentCameraAngleX = Math.PI / 4;
 let currentCameraAngleY = Math.PI / 4;
-let activeCustomizeWall = 'back';
+let activeCustomizeWall = 'all';
 
 let friendCamDist = 6.8;
 let friendCameraAngleX = Math.PI / 4;
@@ -454,15 +469,34 @@ function resetFriendRoomView() {
 function changeActiveWall(wallName) {
   activeCustomizeWall = wallName;
   if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
-  document.getElementById('activeWallpaperSelect').value = userData.wallpapers[wallName] || '0x16261e';
+  if(wallName === 'all') {
+    document.getElementById('activeWallpaperSelect').value = userData.wallpapers.back || '0x16261e';
+  } else {
+    document.getElementById('activeWallpaperSelect').value = userData.wallpapers[wallName] || '0x16261e';
+  }
 }
 
 function changeRoomWallpaper(val) {
   if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
-  userData.wallpapers[activeCustomizeWall] = val;
+  if(activeCustomizeWall === 'all') {
+    userData.wallpapers.back = val;
+    userData.wallpapers.left = val;
+    userData.wallpapers.right = val;
+    userData.wallpapers.front = val;
+    toast('Applied wallpaper to ALL walls!');
+  } else {
+    userData.wallpapers[activeCustomizeWall] = val;
+    toast(activeCustomizeWall.toUpperCase() + ' wall wallpaper updated!');
+  }
   commitCloud();
   init3DRoom();
-  toast(activeCustomizeWall.toUpperCase() + ' wall wallpaper updated!');
+}
+
+function changeRoomFlooring(val) {
+  userData.flooring = val;
+  commitCloud();
+  init3DRoom();
+  toast('Flooring updated!');
 }
 
 function toggleWalkMode() {
@@ -471,7 +505,7 @@ function toggleWalkMode() {
   let btn = document.getElementById('walkToggle');
   if(isWalkModeActive) {
     btn.textContent = '🏡 BACK INDOORS';
-    toast('Nature walk mode enabled! 🌲🍃');
+    toast('Nature walk mode enabled! 🌲🍃 Music is now cheerful and uplifting!');
   } else {
     btn.textContent = '🌲 ON A WALK';
     toast('Welcome back inside!');
@@ -509,23 +543,29 @@ function toggleAudio() {
     } else {
       isAudioPlaying = true;
       btn.textContent = '🎵 8-BIT MUSIC: ON';
-      let melodies = [
+      
+      let baseMelodies = [
         [261.63, 329.63, 392.00, 523.25, 392.00, 329.63],
         [220.00, 261.63, 329.63, 440.00, 329.63, 261.63],
         [349.23, 440.00, 523.25, 659.25, 523.25, 440.00],
         [196.00, 246.94, 293.66, 392.00, 293.66, 246.94]
       ];
-      let bassline = [110.00, 130.81, 146.83, 98.00];
+      let baseBass = [110.00, 130.81, 146.83, 98.00];
+
       let bar = 0;
       let step = 0;
 
       musicInterval = setInterval(() => {
         if(!isAudioPlaying) return;
-        let currentMelody = melodies[Math.floor(bar / 4) % melodies.length];
-        playSoundFX(currentMelody[step % currentMelody.length], 'square', 0.14);
+        
+        let multiplier = isWalkModeActive ? 2.0 : 1.0;
+        let currentMelody = baseMelodies[Math.floor(bar / 4) % baseMelodies.length].map(f => f * multiplier);
+        let currentBass = baseBass.map(f => f * multiplier);
+
+        playSoundFX(currentMelody[step % currentMelody.length], isWalkModeActive ? 'triangle' : 'square', isWalkModeActive ? 0.12 : 0.14);
         
         if(step % 2 === 0) {
-          playSoundFX(bassline[(Math.floor(step/2)) % bassline.length], 'triangle', 0.22);
+          playSoundFX(currentBass[(Math.floor(step/2)) % currentBass.length], 'sine', 0.2);
         }
         
         step++;
@@ -533,7 +573,7 @@ function toggleAudio() {
           step = 0;
           bar++;
         }
-      }, 200);
+      }, isWalkModeActive ? 160 : 200);
     }
   } catch(e){ toast('Click anywhere first to enable audio!'); }
 }
@@ -616,7 +656,7 @@ function setupCloudListeners() {
       userData.owned = sourceObj.owned || userData.owned;
       userData.placed = sourceObj.placed || userData.owned;
       userData.positions = sourceObj.positions || userData.positions;
-      userData.wallpapers = sourceObj.wallpapers || sourceObj.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+      userData.wallpapers = sourceObj.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
       userData.flooring = sourceObj.flooring || userData.flooring;
       userData.steps = sourceObj.steps !== undefined ? sourceObj.steps : userData.steps;
       userData.name = sourceObj.name || userData.name;
@@ -978,11 +1018,19 @@ function buy(id) {
   
   if(p.isWallpaper) {
     if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
-    userData.wallpapers[activeCustomizeWall] = p.colorValue;
+    if(activeCustomizeWall === 'all') {
+      userData.wallpapers.back = p.colorValue;
+      userData.wallpapers.left = p.colorValue;
+      userData.wallpapers.right = p.colorValue;
+      userData.wallpapers.front = p.colorValue;
+      toast('Applied ' + p.name + ' to ALL walls!');
+    } else {
+      userData.wallpapers[activeCustomizeWall] = p.colorValue;
+      toast('Applied ' + p.name + ' to ' + activeCustomizeWall + ' wall!');
+    }
     commitCloud();
     render();
     init3DRoom();
-    toast('Applied ' + p.name + ' to ' + activeCustomizeWall + ' wall!');
     return;
   }
   if(p.isFlooring) {
@@ -1019,11 +1067,19 @@ function placeItem(id) {
   let pDef = products.find(p => p.id === id);
   if(pDef && pDef.isWallpaper) {
     if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
-    userData.wallpapers[activeCustomizeWall] = pDef.colorValue;
+    if(activeCustomizeWall === 'all') {
+      userData.wallpapers.back = pDef.colorValue;
+      userData.wallpapers.left = pDef.colorValue;
+      userData.wallpapers.right = pDef.colorValue;
+      userData.wallpapers.front = pDef.colorValue;
+      toast('Applied wallpaper to ALL walls!');
+    } else {
+      userData.wallpapers[activeCustomizeWall] = pDef.colorValue;
+      toast('Applied wallpaper to ' + activeCustomizeWall + ' wall!');
+    }
     commitCloud();
     render();
     init3DRoom();
-    toast('Applied wallpaper to ' + activeCustomizeWall + ' wall!');
     return;
   }
   if(pDef && pDef.isFlooring) {
@@ -1047,13 +1103,6 @@ function placeItem(id) {
   render();
   init3DRoom();
   toast('Placed item into room! 🏡');
-}
-
-function changeRoomFlooring(val) {
-  userData.flooring = val;
-  commitCloud();
-  init3DRoom();
-  toast('Flooring updated!');
 }
 
 function addFriend(uid) {
@@ -1363,7 +1412,8 @@ function init3DRoom() {
 
     let wallColors = userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
     document.getElementById('activeWallSelect').value = activeCustomizeWall;
-    document.getElementById('activeWallpaperSelect').value = wallColors[activeCustomizeWall] || '0x16261e';
+    document.getElementById('activeWallpaperSelect').value = activeCustomizeWall === 'all' ? (wallColors.back || '0x16261e') : (wallColors[activeCustomizeWall] || '0x16261e');
+    document.getElementById('activeFlooringSelect').value = userData.flooring || '0x1d3026';
 
     container.innerHTML = `
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
@@ -1439,6 +1489,7 @@ function init3DRoom() {
     scene.add(frontWall);
 
     const walls = [backWall, leftWall, rightWall, frontWall];
+    const wallMap = { back: backWall, left: leftWall, right: rightWall, front: frontWall };
 
     const furnitureMeshes = [];
     let itemsToRender = userData.placed || userData.owned;
@@ -1456,33 +1507,33 @@ function init3DRoom() {
         const group = createItemModel(id, 0xffa500, userData);
         group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
         group.rotation.y = pos.rot || 0;
-        group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight, wall: pos.wall };
+        group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight, wall: pos.wall || 'back' };
         scene.add(group);
         furnitureMeshes.push(group);
       });
     }
 
     function updateWallVisibility() {
-      // Calculate distances from camera to each wall center
       let wallDistances = walls.map(w => {
         let center = new THREE.Vector3();
         w.getWorldPosition(center);
         return { wall: w, dist: camera.position.distanceTo(center) };
       });
-      // Sort walls by distance ascending (closest first)
       wallDistances.sort((a, b) => a.dist - b.dist);
 
-      // Keep only the 2 furthest walls visible, occlude the 2 closest ones
-      walls.forEach((w, idx) => {
+      walls.forEach((w) => {
         let isClosestTwo = (w === wallDistances[0].wall || w === wallDistances[1].wall);
         let show = !isClosestTwo;
         w.visible = show;
+      });
 
-        furnitureMeshes.forEach(fm => {
-          if (fm.userData.wall && fm.userData.wall === w.userData.wallName) {
-            fm.visible = show;
+      furnitureMeshes.forEach(fm => {
+        if (fm.userData.isWallItem) {
+          let parentWall = wallMap[fm.userData.wall || 'back'];
+          if (parentWall) {
+            fm.visible = parentWall.visible;
           }
-        });
+        }
       });
     }
     updateWallVisibility();
@@ -1529,12 +1580,12 @@ function init3DRoom() {
       let clicked = null;
       for (let hit of intersects) {
         let obj = hit.object;
-        if (obj.geometry && obj.geometry.type === 'PlaneGeometry') continue; // Skip walls/floor
+        if (obj.geometry && obj.geometry.type === 'PlaneGeometry') continue;
         while (obj.parent && obj.parent !== scene) {
           if (furnitureMeshes.includes(obj)) break;
           obj = obj.parent;
         }
-        if (furnitureMeshes.includes(obj)) { clicked = obj; break; }
+        if (furnitureMeshes.includes(obj) && obj.visible) { clicked = obj; break; }
       }
 
       furnitureMeshes.forEach(m => { let r = m.getObjectByName('ring'); if (r) r.visible = false; });
@@ -1595,23 +1646,30 @@ function init3DRoom() {
 
         let minDist = Math.min(Math.abs(backIntersect.z), Math.abs(leftIntersect.x), Math.abs(rightIntersect.x), Math.abs(frontIntersect.z));
 
+        let chosenWall = 'back';
         if (minDist === Math.abs(frontIntersect.z)) {
           activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, frontIntersect.x)), Math.max(1, Math.min(5, frontIntersect.y)), limit);
           activeSelectedFurniture.rotation.y = Math.PI;
-          userData.positions[pDef.id].wall = 'front';
+          chosenWall = 'front';
         } else if (minDist === Math.abs(rightIntersect.x)) {
           activeSelectedFurniture.position.set(limit, Math.max(1, Math.min(5, rightIntersect.y)), Math.max(-bound, Math.min(bound, rightIntersect.z)));
           activeSelectedFurniture.rotation.y = -Math.PI / 2;
-          userData.positions[pDef.id].wall = 'right';
+          chosenWall = 'right';
         } else if (minDist === Math.abs(leftIntersect.x)) {
           activeSelectedFurniture.position.set(-limit, Math.max(1, Math.min(5, leftIntersect.y)), Math.max(-bound, Math.min(bound, leftIntersect.z)));
           activeSelectedFurniture.rotation.y = Math.PI / 2;
-          userData.positions[pDef.id].wall = 'left';
+          chosenWall = 'left';
         } else {
           activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, backIntersect.x)), Math.max(1, Math.min(5, backIntersect.y)), -limit);
           activeSelectedFurniture.rotation.y = 0;
-          userData.positions[pDef.id].wall = 'back';
+          chosenWall = 'back';
         }
+
+        activeSelectedFurniture.userData.wall = chosenWall;
+        if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
+        userData.positions[pDef.id].wall = chosenWall;
+
+        updateWallVisibility();
       } else {
         const target = new THREE.Vector3();
         raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0), 0), target);
@@ -1741,6 +1799,7 @@ function initFriend3DRoom() {
     scene.add(frontWall);
 
     const walls = [backWall, leftWall, rightWall, frontWall];
+    const wallMap = { back: backWall, left: leftWall, right: rightWall, front: frontWall };
     const friendFurniture = [];
 
     let itemsToRender = targetData.placed || targetData.owned;
@@ -1758,7 +1817,7 @@ function initFriend3DRoom() {
         const group = createItemModel(id, 0xffa500, targetData);
         group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
         group.rotation.y = pos.rot || 0;
-        group.userData = { wall: pos.wall };
+        group.userData = { isWallItem: pDef.isWallItem, wall: pos.wall || 'back' };
         scene.add(group);
         friendFurniture.push(group);
       });
@@ -1772,16 +1831,19 @@ function initFriend3DRoom() {
       });
       wallDistances.sort((a, b) => a.dist - b.dist);
 
-      walls.forEach((w, idx) => {
+      walls.forEach((w) => {
         let isClosestTwo = (w === wallDistances[0].wall || w === wallDistances[1].wall);
         let show = !isClosestTwo;
         w.visible = show;
+      });
 
-        friendFurniture.forEach(fm => {
-          if (fm.userData.wall && fm.userData.wall === w.userData.wallName) {
-            fm.visible = show;
+      friendFurniture.forEach(fm => {
+        if (fm.userData.isWallItem) {
+          let parentWall = wallMap[fm.userData.wall || 'back'];
+          if (parentWall) {
+            fm.visible = parentWall.visible;
           }
-        });
+        }
       });
     }
     updateFriendWallVisibility();
@@ -1906,7 +1968,7 @@ function render() {
 
   document.getElementById('shopgrid').innerHTML = products.map(p => {
     let wallColors = userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
-    let isOwnedWallpaperOrFlooring = (p.isWallpaper && wallColors[activeCustomizeWall] === p.colorValue) || (p.isFlooring && userData.flooring === p.colorValue);
+    let isOwnedWallpaperOrFlooring = (p.isWallpaper && (activeCustomizeWall === 'all' ? wallColors.back === p.colorValue : wallColors[activeCustomizeWall] === p.colorValue)) || (p.isFlooring && userData.flooring === p.colorValue);
     return `
       <div class="shopitem">
         <b>${p.name}</b><small>${p.price} 🪙</small>
