@@ -399,8 +399,8 @@ let currentUser = null;
 let currentUserEmail = '';
 let userData = {
   coins: 500, cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0,
-  owned: ['bed','teddy','plant','lamp','painting','cat','window','door','sofa','desk','guitar','arcade','tv','bookcase','gaming_pc','snake_plant'],
-  placed: ['bed','teddy','plant','lamp','painting','cat','window','door','sofa','desk','guitar','arcade','tv','bookcase','gaming_pc','snake_plant'],
+  owned: ['bed','teddy','plant','lamp','painting','cat','window','door','sofa','desk','guitar','arcade','tv','bookcase','gaming_pc','snake_plant','beanbag','coffee_table','clock','rug','nightstand','neon_sign','acoustic_panels','lounger'],
+  placed: ['bed','teddy','plant','lamp','painting','cat','window','door','sofa','desk','guitar','arcade','tv','bookcase','gaming_pc','snake_plant','beanbag','coffee_table','clock','rug','nightstand','neon_sign','acoustic_panels','lounger'],
   positions: {
     bed:{x:-1.2,y:0,z:-1.2,rot:0},
     teddy:{x:-1.2,y:0.4,z:-1.0,rot:0},
@@ -408,7 +408,7 @@ let userData = {
     plant:{x:1.2,y:0,z:1.2,rot:0},
     lamp:{x:1.2,y:0,z:-1.2,rot:0},
     painting:{x:-1.2,y:2.5,z:-3.42,rot:0,wall:'back'},
-    window:{x:1.2,y:2.5,z:-3.42,rot:0,wall:'back'},
+    window:{x:1.5,y:2.4,z:-3.42,rot:0,wall:'back'},
     door:{x:-3.42,y:1.5,z:1.2,rot:Math.PI/2,wall:'left'},
     sofa:{x:0,y:0,z:1.2,rot:0},
     desk:{x:1.2,y:0,z:0,rot:0},
@@ -417,7 +417,15 @@ let userData = {
     tv:{x:0,y:0,z:-3.42,rot:0,wall:'back'},
     bookcase:{x:-3.42,y:0,z:0,rot:Math.PI/2,wall:'left'},
     gaming_pc:{x:1.2,y:0.8,z:0,rot:0},
-    snake_plant:{x:-1.2,y:0,z:0,rot:0}
+    snake_plant:{x:-1.2,y:0,z:0,rot:0},
+    beanbag:{x:-2.0,y:0,z:2.0,rot:0},
+    coffee_table:{x:0,y:0,z:0.4,rot:0},
+    clock:{x:0,y:2.8,z:-3.42,rot:0,wall:'back'},
+    rug:{x:0,y:0.01,z:0.6,rot:0},
+    nightstand:{x:-2.2,y:0,z:-1.2,rot:0},
+    neon_sign:{x:2.0,y:2.6,z:-3.42,rot:0,wall:'back'},
+    acoustic_panels:{x:-3.42,y:2.5,z:-2.0,rot:Math.PI/2,wall:'left'},
+    lounger:{x:2.0,y:0,z:2.0,rot:0}
   },
   wallpapers: { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' },
   flooring: '0x1d3026',
@@ -1001,10 +1009,10 @@ const products = [
   {id:'bed',name:'Cozy bed (2 Pillows)',price:0, surfaceHeight: 0.4},
   {id:'teddy',name:'Teddy bear',price:0, canStackOnSurface: true},
   {id:'plant',name:'Leafy plant',price:40},
-  {id:'lamp',name:'Warm lamp',price:55},
+  {id:'lamp',name:'Warm lamp',price:55, surfaceHeight: 0.8},
   {id:'sofa',name:'Comfy sofa',price:120, surfaceHeight: 0.45},
   {id:'painting',name:'Wall art',price:95, isWallItem: true},
-  {id:'window',name:'Detailed Glass Window',price:80, isWallItem: true},
+  {id:'window',name:'Glass Window w/ Outside View',price:80, isWallItem: true},
   {id:'door',name:'Detailed Wooden Door',price:110, isWallItem: true},
   {id:'desk',name:'Desk & PC',price:140, surfaceHeight: 0.8},
   {id:'guitar',name:'Acoustic guitar',price:90, isWallItem: true},
@@ -1014,6 +1022,14 @@ const products = [
   {id:'bookcase',name:'Wooden Bookcase',price:110},
   {id:'gaming_pc',name:'Battlestation Rig',price:210, surfaceHeight: 0.8},
   {id:'snake_plant',name:'Tall Snake Plant',price:50},
+  {id:'beanbag',name:'Plush Beanbag Chair',price:65, surfaceHeight: 0.3},
+  {id:'coffee_table',name:'Modern Coffee Table',price:75, surfaceHeight: 0.45},
+  {id:'clock',name:'Wall Clock',price:45, isWallItem: true},
+  {id:'rug',name:'Cozy Floor Rug',price:40},
+  {id:'nightstand',name:'Wooden Nightstand',price:50, surfaceHeight: 0.6},
+  {id:'neon_sign',name:'Glowing Neon Sign',price:130, isWallItem: true},
+  {id:'acoustic_panels',name:'Studio Acoustic Panels',price:70, isWallItem: true},
+  {id:'lounger',name:'Comfy Lounge Chair',price:100, surfaceHeight: 0.4},
   {id:'wallpaper_navy',name:'Navy Wall Paint',price:45, isWallpaper: true, colorValue: '0x253b4c'},
   {id:'wallpaper_brick',name:'Dark Brick Wall',price:60, isWallpaper: true, colorValue: '0x3b2b23'},
   {id:'wallpaper_pastel',name:'Pastel Gray Wall',price:45, isWallpaper: true, colorValue: '0xdcdcdc'},
@@ -1369,19 +1385,31 @@ function createItemModel(id, customCatColor=0xffa500, activeDataObj=null) {
   else if(id==='sofa'){ addBox(2.2, 0.45, 0.9, 0x1e90ff, 0, 0.225, 0); addBox(2.2, 0.9, 0.25, 0x0000cd, 0, 0.65, -0.325); }
   else if(id==='painting'){ addBox(1.2, 0.9, 0.08, 0x8b4513, 0, 0, 0); addBox(1.0, 0.7, 0.1, 0xffd700, 0, 0, 0.02); }
   else if(id==='window'){ 
-    addBox(1.5, 1.5, 0.12, 0x3b220d, 0, 0, 0);
-    addBox(1.3, 1.3, 0.04, 0x87ceeb, 0, 0, 0.01);
-    addBox(0.08, 1.3, 0.08, 0x3b220d, 0, 0, 0.02);
-    addBox(1.3, 0.08, 0.08, 0x3b220d, 0, 0, 0.02);
-    addBox(1.5, 0.15, 0.18, 0x4e3113, 0, -0.75, 0.05);
+    // Realistic multi-pane window frame & glass
+    addBox(1.6, 1.6, 0.12, 0x3b220d, 0, 0, 0); // Outer frame
+    // Glass pane with soft translucent glow/reflection look
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: isWalkModeActive ? 0x67e8f0 : 0xa0e0ff,
+      transparent: true,
+      opacity: 0.35,
+      roughness: 0.1,
+      metalness: 0.9,
+      emissive: isWalkModeActive ? 0x103040 : 0x205060,
+      emissiveIntensity: 0.5
+    });
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 0.02), glassMat);
+    glass.position.set(0, 0, 0);
+    group.add(glass);
+
+    // Window muntins (cross bars)
+    addBox(0.06, 1.4, 0.06, 0x3b220d, 0, 0, 0.01);
+    addBox(1.4, 0.06, 0.06, 0x3b220d, 0, 0, 0.01);
+    // Window sill
+    addBox(1.8, 0.12, 0.22, 0x4e3113, 0, -0.8, 0.05);
   }
   else if(id==='door'){ 
     addBox(1.3, 2.4, 0.14, 0x4a2e18, 0, 0, 0);
     addBox(1.1, 2.2, 0.06, 0x633e22, 0, 0, 0.04);
-    addBox(0.45, 0.8, 0.08, 0x3b220d, -0.28, 0.5, 0.06);
-    addBox(0.45, 0.8, 0.08, 0x3b220d, 0.28, 0.5, 0.06);
-    addBox(0.45, 0.8, 0.08, 0x3b220d, -0.28, -0.4, 0.06);
-    addBox(0.45, 0.8, 0.08, 0x3b220d, 0.28, -0.4, 0.06);
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), new THREE.MeshStandardMaterial({color: 0xffd700, metalness: 0.8, roughness: 0.2}));
     knob.position.set(0.42, 0, 0.1);
     group.add(knob);
@@ -1393,6 +1421,50 @@ function createItemModel(id, customCatColor=0xffa500, activeDataObj=null) {
   else if(id==='bookcase'){ addBox(1.2, 2.0, 0.5, 0x5c4033, 0, 1.0, 0); addBox(1.0, 0.1, 0.45, 0x8b5a2b, 0, 0.6, 0); addBox(1.0, 0.1, 0.45, 0x8b5a2b, 0, 1.2, 0); }
   else if(id==='gaming_pc'){ addBox(1.8, 0.8, 0.9, 0x1a1a1a, 0, 0.4, 0); addBox(0.8, 0.45, 0.05, 0x00ffcc, 0, 1.05, -0.2); addBox(0.25, 0.5, 0.4, 0xcc00ff, 0.7, 1.05, -0.1); }
   else if(id==='snake_plant'){ addBox(0.4, 0.6, 0.4, 0xffffff, 0, 0.3, 0); addBox(0.1, 1.2, 0.1, 0x2e8b57, 0, 1.1, 0); addBox(0.1, 0.9, 0.1, 0x3cb371, 0.1, 0.9, 0.1); }
+  else if(id==='beanbag'){
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.55, 16, 16), new THREE.MeshStandardMaterial({color: 0x98d682, roughness: 0.9}));
+    mesh.scale.set(1.2, 0.7, 1.2);
+    mesh.position.y = 0.3;
+    group.add(mesh);
+  }
+  else if(id==='coffee_table'){
+    addBox(1.2, 0.08, 0.7, 0x5c4033, 0, 0.42, 0);
+    addBox(0.08, 0.4, 0.08, 0x332211, -0.5, 0.2, -0.25);
+    addBox(0.08, 0.4, 0.08, 0x332211, 0.5, 0.2, -0.25);
+    addBox(0.08, 0.4, 0.08, 0x332211, -0.5, 0.2, 0.25);
+    addBox(0.08, 0.4, 0.08, 0x332211, 0.5, 0.2, 0.25);
+  }
+  else if(id==='clock'){
+    addBox(0.6, 0.6, 0.06, 0xf5f2e3, 0, 0, 0);
+    addBox(0.5, 0.5, 0.08, 0x14201a, 0, 0, 0.01);
+    addBox(0.04, 0.2, 0.02, 0xd2f567, 0, 0.1, 0.03);
+  }
+  else if(id==='rug'){
+    const rugMesh = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.8), new THREE.MeshStandardMaterial({color: 0x384759, roughness: 0.9}));
+    rugMesh.rotation.x = -Math.PI/2;
+    rugMesh.position.y = 0.015;
+    group.add(rugMesh);
+  }
+  else if(id==='nightstand'){
+    addBox(0.6, 0.6, 0.6, 0x5c4033, 0, 0.3, 0);
+    addBox(0.5, 0.04, 0.5, 0x3b220d, 0, 0.6, 0);
+  }
+  else if(id==='neon_sign'){
+    const neonMat = new THREE.MeshBasicMaterial({color: 0x67e8f0});
+    const neonMesh = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.04, 16, 32), neonMat);
+    neonMesh.position.z = 0.02;
+    group.add(neonMesh);
+    addBox(1.0, 0.8, 0.04, 0x111111, 0, 0, 0);
+  }
+  else if(id==='acoustic_panels'){
+    addBox(0.9, 1.8, 0.06, 0x222222, 0, 0, 0);
+    addBox(0.4, 0.8, 0.08, 0x444444, -0.2, 0, 0.02);
+    addBox(0.4, 0.8, 0.08, 0x444444, 0.2, 0, 0.02);
+  }
+  else if(id==='lounger'){
+    addBox(1.6, 0.4, 0.8, 0xd2691e, 0, 0.2, 0);
+    addBox(0.4, 0.8, 0.8, 0xd2691e, -0.6, 0.6, 0);
+  }
   else { addBox(0.8, 0.8, 0.8, 0x1e90ff, 0, 0.4, 0); }
 
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.8, 32), new THREE.MeshBasicMaterial({color: 0xd2f567, wireframe: true, side: THREE.DoubleSide}));
