@@ -467,7 +467,7 @@ function setupCloudListeners() {
       let d = doc.data();
       if(d.data) {
         userData.coins = d.data.coins !== undefined ? d.data.coins : userData.coins;
-        userData.roomLevel = d.data.roomLevel !== undefined ? d.data.roomLevel : userData.roomLevel;
+        userData.roomLevel = d.data.roomLevel !== undefined ? Number(d.data.roomLevel) : userData.roomLevel;
         userData.owned = d.data.owned || userData.owned;
         userData.positions = d.data.positions || userData.positions;
         userData.name = d.data.name || userData.name;
@@ -647,14 +647,15 @@ function buy(id) {
 
 function expandRoom() {
   if (visitingFriendUid) return;
-  if (userData.roomLevel >= 4) return toast('Room is already at maximum 8x8 size!');
+  if ((userData.roomLevel || 0) >= 4) return toast('Room is already at maximum 8x8 size!');
   if (userData.coins < 100) return toast('Need 100 coins to expand room!');
   userData.coins -= 100;
   userData.roomLevel = (userData.roomLevel || 0) + 1;
   commitCloud();
   render();
   init3DRoom();
-  toast('Room expanded! 🎉 (' + (4 + userData.roomLevel) + 'x' + (4 + userData.roomLevel) + ')');
+  let newSize = 4 + userData.roomLevel;
+  toast('Room expanded! 🎉 (' + newSize + 'x' + newSize + ')');
 }
 
 function addFriend(uid) {
@@ -949,8 +950,8 @@ function init3DRoom() {
     let isVisiting = !!visitingFriendUid;
     let targetData = isVisiting ? visitingFriendData : userData;
     if(!targetData) targetData = userData;
-    let rLevel = targetData.roomLevel || 0;
-    let roomSize = 4 + rLevel; // 4x4 up to 8x8
+    let rLevel = Number(targetData.roomLevel || 0);
+    let roomSize = 4 + rLevel; // level 0 = 4x4, level 1 = 5x5, level 2 = 6x6, level 3 = 7x7, level 4 = 8x8
 
     document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room (" + roomSize + "x" + roomSize + ")";
     document.getElementById('returnRoomBtn').style.display = isVisiting ? "inline-block" : "none";
