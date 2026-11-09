@@ -465,18 +465,20 @@ function setupCloudListeners() {
   db.collection('user_profiles').doc(currentUser.uid).onSnapshot(doc => {
     if (doc.exists) {
       let d = doc.data();
-      if(d.data) {
-        userData.coins = d.data.coins !== undefined ? d.data.coins : userData.coins;
-        userData.roomLevel = d.data.roomLevel !== undefined ? Number(d.data.roomLevel) : userData.roomLevel;
-        userData.owned = d.data.owned || userData.owned;
-        userData.positions = d.data.positions || userData.positions;
-        userData.name = d.data.name || userData.name;
-        userData.catName = d.data.catName || userData.catName;
-        userData.catColor = d.data.catColor || userData.catColor;
-        userData.spotifyUrl = d.data.spotifyUrl || userData.spotifyUrl;
-        userData.friends = d.data.friends || userData.friends;
-        userData.photos = d.data.photos || userData.photos;
-      }
+      // Support both root-level fields and old nested 'data' map format for backward compatibility
+      let sourceObj = d.data || d;
+      
+      userData.coins = sourceObj.coins !== undefined ? sourceObj.coins : userData.coins;
+      userData.roomLevel = sourceObj.roomLevel !== undefined ? Number(sourceObj.roomLevel) : userData.roomLevel;
+      userData.owned = sourceObj.owned || userData.owned;
+      userData.positions = sourceObj.positions || userData.positions;
+      userData.name = sourceObj.name || userData.name;
+      userData.catName = sourceObj.catName || userData.catName;
+      userData.catColor = sourceObj.catColor || userData.catColor;
+      userData.spotifyUrl = sourceObj.spotifyUrl || userData.spotifyUrl;
+      userData.friends = sourceObj.friends || userData.friends;
+      userData.photos = sourceObj.photos || userData.photos;
+
       if(!userData.name) {
         document.getElementById('usernameOverlay').style.display = 'flex';
       } else {
@@ -515,9 +517,11 @@ async function fetchAllMembers() {
     allClubMembers = [];
     snap.forEach(doc => {
       let d = doc.data();
-      if(d.uid) {
-        let name = (d.displayName || (d.data && d.data.name)) || ("Member #" + d.uid.substring(0,4));
-        allClubMembers.push({ uid: d.uid, name: name, email: d.email || '', data: d.data || {} });
+      let dSource = d.data || d;
+      if(d.uid || dSource.uid) {
+        let uId = d.uid || dSource.uid;
+        let name = (d.displayName || dSource.name) || ("Member #" + uId.substring(0,4));
+        allClubMembers.push({ uid: uId, name: name, email: d.email || dSource.email || '', data: dSource });
       }
     });
     filterDirectory();
@@ -527,7 +531,22 @@ async function fetchAllMembers() {
 
 function commitCloud() {
   if (!currentUser) return;
-  db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, email: currentUserEmail, displayName: userData.name }, { merge: true }).then(() => {
+  // Write flat fields directly to Firestore document for direct access & reliability
+  db.collection('user_profiles').doc(currentUser.uid).set({
+    uid: currentUser.uid,
+    email: currentUserEmail,
+    displayName: userData.name,
+    coins: userData.coins,
+    roomLevel: userData.roomLevel,
+    owned: userData.owned,
+    positions: userData.positions,
+    name: userData.name,
+    catName: userData.catName,
+    catColor: userData.catColor,
+    spotifyUrl: userData.spotifyUrl,
+    friends: userData.friends,
+    photos: userData.photos
+  }, { merge: true }).then(() => {
     fetchAllMembers();
   }).catch(e => {});
 }
@@ -691,9 +710,10 @@ function messageFriend(name) {
 
 async function visitFriendRoom(uid, name) {
   let doc = await db.collection('user_profiles').doc(uid).get();
-  if(doc.exists && doc.data().data) {
+  if(doc.exists) {
+    let d = doc.data();
     visitingFriendUid = uid;
-    visitingFriendData = doc.data().data;
+    visitingFriendData = d.data || d;
     document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'room'));
     document.querySelectorAll('.view').forEach(x => {
       let isActive = (x.id === 'room');
@@ -1009,7 +1029,7 @@ function init3DRoom() {
       targetData.owned.forEach(id => {
         let pDef = products.find(p => p.id === id);
         if (!pDef) return;
-        let pos = targetData.positions && targetData.positions[id] ? targetData.positions[id] : {x:0, y:0, z:0, rot:0};
+        let pos = targetData.positions && targetData.positions[id] ? targetData.positions[id] : (pDef.isWallItem ? {x:0, y:2.5, z:-halfSize+0.08, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0});
 
         const group = createItemModel(id, 0xffa500, targetData);
         group.position.set(pos.x, pos.y || 0, pos.z);
