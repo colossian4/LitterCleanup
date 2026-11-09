@@ -52,9 +52,14 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
 #roomCanvasContainer{position:relative;width:100%;height:480px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
 #roomCanvasContainer canvas{display:block;width:100%!important;height:100%!important}
-.room-instructions{position:absolute;bottom:12px;left:12px;background:rgba(11,19,16,0.92);border:1px solid var(--line);padding:6px 12px;border-radius:8px;font:11px 'DM Mono';color:var(--lime);pointer-events:none}
+#friendRoomCanvasContainer{position:relative;width:100%;height:480px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
+#friendRoomCanvasContainer canvas{display:block;width:100%!important;height:100%!important}
+
+.room-instructions{position:absolute;bottom:12px;left:12px;background:rgba(11,19,16,0.92);border:1px solid var(--line);padding:6px 12px;border-radius:8px;font:11px 'DM Mono';color:var(--lime);pointer-events:none;z-index:5}
 .room-top-controls{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5}
 .active-item-banner{position:absolute;top:12px;left:12px;background:rgba(210,245,103,0.9);color:#121c16;padding:6px 14px;border-radius:8px;font:12px 'DM Mono';font-weight:800;display:none;z-index:5;box-shadow:0 4px 0 rgba(0,0,0,0.2)}
+.trash-drop-zone{position:absolute;bottom:16px;right:16px;background:rgba(217,83,79,0.9);color:#fff;border:2px dashed #fff;padding:10px 16px;border-radius:12px;font:12px 'DM Mono';font-weight:800;display:none;z-index:6;box-shadow:0 4px 0 rgba(0,0,0,0.3);pointer-events:none;transition:.2s}
+.trash-drop-zone.highlight{background:rgba(255,50,50,1);transform:scale(1.08)}
 
 .shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.shopitem{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}.shopitem b{font-size:13px;display:block;margin-bottom:6px}.shopitem small{color:var(--lime);font:11px 'DM Mono';display:block;margin-bottom:10px}
 .msg-box{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;max-height:240px;overflow-y:auto;margin-bottom:12px}.msg{margin-bottom:10px;font-size:13px;padding:8px 12px;background:var(--panel2);border-radius:8px}.msg b{color:var(--lime)}
@@ -143,6 +148,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <button class="nav" data-view="steps"><span>👟</span>Step Logger</button>
   <button class="nav" data-view="photos"><span>📸</span>Photo Database</button>
   <button class="nav" data-view="room" onclick="init3DRoom()"><span>🏡</span>My Room</button>
+  <button class="nav" data-view="friendRoomTab" id="friendRoomNavBtn" style="display:none" onclick="initFriend3DRoom()"><span>👀</span>Friend's Room</button>
   <button class="nav" data-view="shop"><span>🛍️</span>Shop</button>
   <button class="nav" data-view="social"><span>💬</span>Social & DMs</button>
   <button class="nav" data-view="friends" onclick="loadDirectory()"><span>👥</span>Members & Friends</button>
@@ -209,22 +215,34 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room (7x7)</h3>
-        <button class="btn secondary" id="returnRoomBtn" style="display:none;padding:6px 12px;font-size:12px" onclick="viewMyOwnRoom()">RETURN TO MY ROOM</button>
       </div>
       <div id="roomCanvasContainer">
         <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
+        <div class="trash-drop-zone" id="trashDropZone">🗑️ Drop here to Store</div>
         <div class="room-top-controls">
           <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
         </div>
-        <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Click Rotate or press R to spin</div>
+        <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Drag to Trash to store away</div>
       </div>
-      <div id="friendSpotifyContainer" class="spotify-container" style="display:none"></div>
     </div>
 
     <div class="panel" id="roomInventoryPanel">
       <h3>📦 Room Inventory & Storage</h3>
       <p class="sub">Click any owned item to place it in your room or store it away!</p>
       <div class="shopgrid" id="roomInventoryGrid"></div>
+    </div>
+  </section>
+
+  <section class="view" id="friendRoomTab">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="friendRoomHeaderTitle" style="margin:0">👀 Visiting Friend's Room</h3>
+        <button class="btn secondary" style="padding:6px 12px;font-size:12px" onclick="backToMyRoomTab()">RETURN TO MY ROOM</button>
+      </div>
+      <div id="friendRoomCanvasContainer">
+        <div class="room-instructions">👀 Visiting Room Mode · Interactive edit disabled</div>
+      </div>
+      <div id="friendSpotifyContainer" class="spotify-container" style="display:none"></div>
     </div>
   </section>
 
@@ -349,7 +367,6 @@ let userData = {
 let allClubMembers = [];
 let activeSelectedFurniture = null;
 let counts = {cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0};
-let roomInstance = null;
 let isWalkModeActive = false;
 let headerSpotifyLoaded = false;
 
@@ -666,6 +683,7 @@ function renderStepsStats() {
 }
 
 document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () => {
+  if(b.dataset.view === 'friendRoomTab') return; // Handled separately
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x === b));
   let targetView = b.dataset.view;
   document.querySelectorAll('.view').forEach(x => {
@@ -796,23 +814,40 @@ async function visitFriendRoom(uid, name) {
     let d = doc.data();
     visitingFriendUid = uid;
     visitingFriendData = d.data || d;
-    document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'room'));
+
+    // Show friend room tab nav button
+    let fNav = document.getElementById('friendRoomNavBtn');
+    fNav.style.display = 'flex';
+    fNav.querySelector('span').textContent = '👀';
+    fNav.innerHTML = `<span>👀</span>${name}'s Room`;
+
+    // Activate friend room tab
+    document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.id === 'friendRoomNavBtn'));
     document.querySelectorAll('.view').forEach(x => {
-      let isActive = (x.id === 'room');
+      let isActive = (x.id === 'friendRoomTab');
       x.classList.toggle('active', isActive);
     });
-    init3DRoom();
+
+    document.getElementById('friendRoomHeaderTitle').textContent = "👀 Visiting " + name + "'s Room";
     renderSpotifyEmbed('friendSpotifyContainer', visitingFriendData.spotifyUrl || '');
+    initFriend3DRoom();
     toast("Viewing " + name + "'s Room!");
   } else {
     toast('Could not load friend room!');
   }
 }
 
-function viewMyOwnRoom() {
+function backToMyRoomTab() {
   visitingFriendUid = null;
   visitingFriendData = null;
-  renderSpotifyEmbed('friendSpotifyContainer', '');
+  document.getElementById('friendRoomNavBtn').style.display = 'none';
+  
+  // Switch back to 'room' tab
+  document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'room'));
+  document.querySelectorAll('.view').forEach(x => {
+    let isActive = (x.id === 'room');
+    x.classList.toggle('active', isActive);
+  });
   init3DRoom();
   toast('Returned to your room!');
 }
@@ -1026,7 +1061,6 @@ function createItemModel(id, customCatColor=0xffa500, activeDataObj=null) {
 }
 
 function rotateCurrentFurniture() {
-  if (visitingFriendUid) return;
   playSoundFX(700, 'square', 0.08);
   if (activeSelectedFurniture && userData) {
     let id = activeSelectedFurniture.userData.id;
@@ -1048,23 +1082,15 @@ function init3DRoom() {
 
     let width = container.clientWidth || 600;
     let height = container.clientHeight || 480;
-
-    let isVisiting = !!visitingFriendUid;
-    let targetData = isVisiting ? visitingFriendData : userData;
-    if(!targetData) targetData = userData;
     let roomSize = 7;
-
-    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room (7x7)";
-    document.getElementById('returnRoomBtn').style.display = isVisiting ? "inline-block" : "none";
-    document.getElementById('rotateRoomBtn').style.display = isVisiting ? "none" : "inline-block";
-    document.getElementById('roomInstructText').textContent = isVisiting ? "👀 Viewing Mode · Interactive edit disabled" : "📱 Click/Tap object to select & drag · Click Rotate or press R to spin";
 
     container.innerHTML = `
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
+      <div class="trash-drop-zone" id="trashDropZone">🗑️ Drop here to Store</div>
       <div class="room-top-controls">
-        ${isVisiting ? '' : '<button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>'}
+        <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
       </div>
-      <div class="room-instructions">${isVisiting ? '👀 Visiting Room Mode' : '📱 Click/Tap object to select & drag · Click Rotate or press R to spin'}</div>
+      <div class="room-instructions">📱 Click/Tap object to select & drag · Drag to Trash to store away</div>
     `;
 
     const scene = new THREE.Scene();
@@ -1104,19 +1130,19 @@ function init3DRoom() {
     scene.add(leftWall);
 
     const furnitureMeshes = [];
-    let itemsToRender = isVisiting ? (targetData.placed || targetData.owned) : (targetData.placed || targetData.owned);
-    if (targetData && itemsToRender) {
+    let itemsToRender = userData.placed || userData.owned;
+    if (userData && itemsToRender) {
       itemsToRender.forEach(id => {
         let pDef = products.find(p => p.id === id);
         if (!pDef) return;
         
-        if(!targetData.positions) targetData.positions = {};
-        if(!targetData.positions[id]) {
-          targetData.positions[id] = pDef.isWallItem ? {x:0, y:2.5, z:-halfSize+0.08, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
+        if(!userData.positions) userData.positions = {};
+        if(!userData.positions[id]) {
+          userData.positions[id] = pDef.isWallItem ? {x:0, y:2.5, z:-halfSize+0.08, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
         }
-        let pos = targetData.positions[id];
+        let pos = userData.positions[id];
 
-        const group = createItemModel(id, 0xffa500, targetData);
+        const group = createItemModel(id, 0xffa500, userData);
         group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
         group.rotation.y = pos.rot || 0;
         group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight };
@@ -1130,6 +1156,7 @@ function init3DRoom() {
     const mouse = new THREE.Vector2();
     const dom = renderer.domElement;
     const banner = document.getElementById('activeItemBanner');
+    const trashZone = document.getElementById('trashDropZone');
 
     function updatePointer(e) {
       const rect = dom.getBoundingClientRect();
@@ -1137,10 +1164,23 @@ function init3DRoom() {
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       mouse.x = ((clientX - rect.left) / dom.clientWidth) * 2 - 1;
       mouse.y = -((clientY - rect.top) / dom.clientHeight) * 2 + 1;
+      
+      // Check if mouse is over trash drop zone
+      if(isDragging && trashZone) {
+        let rx = clientX - rect.left;
+        let ry = clientY - rect.top;
+        let trashRect = trashZone.getBoundingClientRect();
+        let tLocalLeft = trashRect.left - rect.left;
+        let tLocalTop = trashRect.top - rect.top;
+        if(rx >= tLocalLeft && rx <= tLocalLeft + trashRect.width && ry >= tLocalTop && ry <= tLocalTop + trashRect.height) {
+          trashZone.classList.add('highlight');
+        } else {
+          trashZone.classList.remove('highlight');
+        }
+      }
     }
 
     function handleStart(e) {
-      if (isVisiting) return;
       updatePointer(e);
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(scene.children, true);
@@ -1163,14 +1203,16 @@ function init3DRoom() {
           banner.textContent = "Moving: " + clicked.userData.name;
           banner.style.display = 'block';
         }
+        if(trashZone) trashZone.style.display = 'block';
       } else {
         activeSelectedFurniture = null;
         if(banner) banner.style.display = 'none';
+        if(trashZone) trashZone.style.display = 'none';
       }
     }
 
     function handleMove(e) {
-      if (!isDragging || !activeSelectedFurniture || isVisiting) return;
+      if (!isDragging || !activeSelectedFurniture) return;
       updatePointer(e);
       raycaster.setFromCamera(mouse, camera);
 
@@ -1225,7 +1267,19 @@ function init3DRoom() {
     }
 
     function handleEnd() {
-      if (isDragging) { isDragging = false; commitCloud(); }
+      if (isDragging) {
+        isDragging = false;
+        if(trashZone && trashZone.classList.contains('highlight')) {
+          storeItem(activeSelectedFurniture.userData.id);
+        } else {
+          commitCloud();
+        }
+        if(trashZone) {
+          trashZone.style.display = 'none';
+          trashZone.classList.remove('highlight');
+        }
+        if(banner) banner.style.display = 'none';
+      }
     }
 
     dom.addEventListener('mousedown', handleStart);
@@ -1235,7 +1289,79 @@ function init3DRoom() {
     window.addEventListener('touchmove', handleMove, {passive: true});
     window.addEventListener('touchend', handleEnd);
 
-    roomInstance = {scene, renderer, camera};
+    (function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); })();
+  }, 100);
+}
+
+function initFriend3DRoom() {
+  setTimeout(() => {
+    const container = document.getElementById('friendRoomCanvasContainer');
+    if (!container || !visitingFriendData) return;
+
+    let width = container.clientWidth || 600;
+    let height = container.clientHeight || 480;
+    let roomSize = 7;
+    let targetData = visitingFriendData;
+
+    container.innerHTML = `
+      <div class="room-instructions">👀 Visiting Room Mode · Interactive edit disabled</div>
+    `;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x13221a);
+
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    let camDist = 10;
+    camera.position.set(camDist, camDist * 0.8, camDist);
+    camera.lookAt(0, 1, 0);
+
+    const renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(width, height);
+    container.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const dirLight = new THREE.DirectionalLight(0xfffaed, 0.9);
+    dirLight.position.set(6, 14, 6);
+    scene.add(dirLight);
+
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), new THREE.MeshStandardMaterial({color: 0x1d3026, roughness: 0.3}));
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+    const grid = new THREE.GridHelper(roomSize, roomSize, 0x365444, 0x253b2f);
+    grid.position.y = 0.01;
+    scene.add(grid);
+
+    const wallMat = new THREE.MeshStandardMaterial({color: 0x16261e, roughness: 0.8});
+    const halfSize = roomSize / 2;
+
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
+    backWall.position.set(0, 3, -halfSize);
+    scene.add(backWall);
+
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
+    leftWall.position.set(-halfSize, 3, 0);
+    leftWall.rotation.y = Math.PI / 2;
+    scene.add(leftWall);
+
+    let itemsToRender = targetData.placed || targetData.owned;
+    if (targetData && itemsToRender) {
+      itemsToRender.forEach(id => {
+        let pDef = products.find(p => p.id === id);
+        if (!pDef) return;
+        
+        if(!targetData.positions) targetData.positions = {};
+        if(!targetData.positions[id]) {
+          targetData.positions[id] = pDef.isWallItem ? {x:0, y:2.5, z:-halfSize+0.08, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
+        }
+        let pos = targetData.positions[id];
+
+        const group = createItemModel(id, 0xffa500, targetData);
+        group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
+        group.rotation.y = pos.rot || 0;
+        scene.add(group);
+      });
+    }
+
     (function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); })();
   }, 100);
 }
