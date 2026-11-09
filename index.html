@@ -174,13 +174,18 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
   <section class="view" id="steps">
     <div class="hero">
-      <div><div class="eyebrow">DAILY ACTIVITY TRACKER</div><h2>Step & Distance Logger</h2><p>Log your daily step count to track distance walked in meters and miles ($1\text{ step} \approx 0.762\text{m}$).</p></div>
+      <div><div class="eyebrow">DAILY ACTIVITY TRACKER</div><h2>Step & Distance Logger</h2><p>Set your total step count or add to it ($1\text{ step} \approx 0.762\text{m}$).</p></div>
     </div>
     <div class="panel">
-      <h3>👟 Log Today's Steps</h3>
-      <label class="sub">Enter steps walked today:</label>
-      <input class="field" id="stepInput" type="number" placeholder="e.g. 7500" min="0">
-      <button class="btn full" onclick="logSteps()">CALCULATE & SAVE STEPS 🚶‍♂️</button>
+      <h3>👟 Step Logger</h3>
+      <label class="sub">Enter step count:</label>
+      <input class="field" id="stepInput" type="number" placeholder="e.g. 3000" min="0">
+      
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <button class="btn" style="flex:1" onclick="setTotalSteps()">SET TOTAL STEPS 📝</button>
+        <button class="btn secondary" style="flex:1" onclick="addSteps()">ADD STEPS ➕</button>
+      </div>
+      <button class="btn danger full" onclick="resetSteps()" style="margin-bottom:14px">RESET STEPS TO 0 🔄</button>
       
       <div style="margin-top:20px;background:var(--bg);border:1px solid var(--line);padding:16px;border-radius:12px">
         <h4 style="margin:0 0 10px;color:var(--lime)">📊 Today's Totals</h4>
@@ -611,7 +616,7 @@ function setupCloudListeners() {
       userData.owned = sourceObj.owned || userData.owned;
       userData.placed = sourceObj.placed || userData.owned;
       userData.positions = sourceObj.positions || userData.positions;
-      userData.wallpapers = sourceObj.wallpapers || userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+      userData.wallpapers = sourceObj.wallpapers || sourceObj.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
       userData.flooring = sourceObj.flooring || userData.flooring;
       userData.steps = sourceObj.steps !== undefined ? sourceObj.steps : userData.steps;
       userData.name = sourceObj.name || userData.name;
@@ -790,14 +795,31 @@ function change(t, d) {
   document.getElementById('reward').textContent = calcReward()+' 🪙';
 }
 
-function logSteps() {
+function setTotalSteps() {
   let val = parseInt(document.getElementById('stepInput').value);
   if(isNaN(val) || val < 0) return toast('Enter a valid step count!');
+  userData.steps = val;
+  document.getElementById('stepInput').value = '';
+  commitCloud();
+  renderStepsStats();
+  toast('Step total updated to ' + val.toLocaleString() + '! 👟');
+}
+
+function addSteps() {
+  let val = parseInt(document.getElementById('stepInput').value);
+  if(isNaN(val) || val < 0) return toast('Enter a valid step count to add!');
   userData.steps = (userData.steps || 0) + val;
   document.getElementById('stepInput').value = '';
   commitCloud();
   renderStepsStats();
-  toast('Logged ' + val.toLocaleString() + ' steps! 👟');
+  toast('Added ' + val.toLocaleString() + ' steps! 👟');
+}
+
+function resetSteps() {
+  userData.steps = 0;
+  commitCloud();
+  renderStepsStats();
+  toast('Step count reset to 0.');
 }
 
 function renderStepsStats() {
@@ -1347,7 +1369,7 @@ function init3DRoom() {
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
       <div class="trash-drop-zone" id="trashDropZone">🗑️ Drop here to Store</div>
       <div class="room-top-controls">
-        <button class="btn secondary" onclick="resetRoomView()" style="padding:4px 8px;font-size:11px">🏠 Reset View</button>
+        <button class="btn secondary" onclick="resetRoomView()" style="padding:4px 8px;font-size:11px" title="Reset to Regular Corner View">🏠 Reset View</button>
         <button class="btn secondary" onclick="zoomRoom(0.8)" style="padding:4px 8px;font-size:12px">+</button>
         <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
         <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
@@ -1441,16 +1463,24 @@ function init3DRoom() {
     }
 
     function updateWallVisibility() {
-      walls.forEach(w => {
-        let wNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(w.quaternion);
-        let camDir = new THREE.Vector3().subVectors(camera.position, w.position).normalize();
-        let dot = wNormal.dot(camDir);
-        let isBehind = dot > 0.05;
-        w.visible = !isBehind;
-        
+      // Calculate distances from camera to each wall center
+      let wallDistances = walls.map(w => {
+        let center = new THREE.Vector3();
+        w.getWorldPosition(center);
+        return { wall: w, dist: camera.position.distanceTo(center) };
+      });
+      // Sort walls by distance ascending (closest first)
+      wallDistances.sort((a, b) => a.dist - b.dist);
+
+      // Keep only the 2 furthest walls visible, occlude the 2 closest ones
+      walls.forEach((w, idx) => {
+        let isClosestTwo = (w === wallDistances[0].wall || w === wallDistances[1].wall);
+        let show = !isClosestTwo;
+        w.visible = show;
+
         furnitureMeshes.forEach(fm => {
           if (fm.userData.wall && fm.userData.wall === w.userData.wallName) {
-            fm.visible = !isBehind;
+            fm.visible = show;
           }
         });
       });
@@ -1735,16 +1765,21 @@ function initFriend3DRoom() {
     }
 
     function updateFriendWallVisibility() {
-      walls.forEach(w => {
-        let wNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(w.quaternion);
-        let camDir = new THREE.Vector3().subVectors(camera.position, w.position).normalize();
-        let dot = wNormal.dot(camDir);
-        let isBehind = dot > 0.05;
-        w.visible = !isBehind;
-        
+      let wallDistances = walls.map(w => {
+        let center = new THREE.Vector3();
+        w.getWorldPosition(center);
+        return { wall: w, dist: camera.position.distanceTo(center) };
+      });
+      wallDistances.sort((a, b) => a.dist - b.dist);
+
+      walls.forEach((w, idx) => {
+        let isClosestTwo = (w === wallDistances[0].wall || w === wallDistances[1].wall);
+        let show = !isClosestTwo;
+        w.visible = show;
+
         friendFurniture.forEach(fm => {
           if (fm.userData.wall && fm.userData.wall === w.userData.wallName) {
-            fm.visible = !isBehind;
+            fm.visible = show;
           }
         });
       });
