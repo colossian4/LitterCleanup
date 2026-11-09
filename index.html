@@ -299,6 +299,7 @@ let activeSelectedFurniture = null;
 let counts = {cans:0, plastic:0, glass:0};
 let roomInstance = null;
 let isWalkModeActive = false;
+let headerSpotifyLoaded = false;
 
 let visitingFriendUid = null;
 let visitingFriendData = null;
@@ -424,6 +425,10 @@ function setupCloudListeners() {
         if(!userData.photos) userData.photos = [];
       }
       render();
+      if(!headerSpotifyLoaded && userData.spotifyUrl) {
+        renderHeaderSpotify(userData.spotifyUrl);
+        headerSpotifyLoaded = true;
+      }
     } else {
       userData.name = "Member #" + currentUser.uid.substring(0,4);
       userData.uid = currentUser.uid;
@@ -469,7 +474,7 @@ function commitCloud() {
   db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, displayName: userData.name }, { merge: true }).then(() => {
     fetchAllMembers();
   }).catch(e => {});
-  render();
+  // Intentionally NOT calling render() here to prevent unnecessary DOM redraws of unrelated UI elements during item drag/drop.
 }
 
 function toast(s) {
@@ -504,14 +509,17 @@ function renderSpotifyEmbed(containerId, url) {
 function previewSpotifyInput() {
   let val = document.getElementById('spotifyInput').value;
   renderSpotifyEmbed('profileSpotifyPreview', val);
-  renderHeaderSpotify(val);
 }
 
 function renderHeaderSpotify(url) {
   let container = document.getElementById('headerSpotifyWidget');
   if (!container) return;
   let embedUrl = getSpotifyEmbedUrl(url);
-  container.innerHTML = `<iframe style="border-radius:8px" src="${embedUrl}" width="220" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+  // Only update header iframe if not already loaded with the same URL to prevent unnecessary reloads
+  let existingIframe = container.querySelector('iframe');
+  if (!existingIframe || !existingIframe.src.includes(embedUrl)) {
+    container.innerHTML = `<iframe style="border-radius:8px" src="${embedUrl}" width="220" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+  }
 }
 
 function calcReward() { return counts.cans*5 + counts.plastic*10 + counts.glass*15; }
@@ -545,6 +553,7 @@ document.getElementById('submit').addEventListener('click', () => {
   ['cans','plastic','glass'].forEach(k => document.getElementById(k).textContent='0');
   document.getElementById('reward').textContent='0 🪙';
   commitCloud();
+  render();
   toast('Cleanup logged! +'+reward+' coins 🌱');
 });
 
@@ -575,6 +584,7 @@ function buy(id) {
   userData.owned.push(id);
   userData.positions[id] = p.isWallItem ? {x:0, y:3, z:-3.92, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
   commitCloud();
+  render();
   init3DRoom();
   toast('Purchased ' + p.name + '!');
 }
@@ -728,6 +738,7 @@ function addPhotoEntry() {
       });
       
       commitCloud();
+      render();
       document.getElementById('photoTitle').value = '';
       fileInput.value = '';
       renderPhotoDatabase();
@@ -743,6 +754,7 @@ function togglePhotoStatus(id) {
   if(p) {
     p.status = p.status === 'Pending Cleanup' ? 'Cleaned Up' : 'Pending Cleanup';
     commitCloud();
+    render();
     renderPhotoDatabase();
     toast('Status updated');
   }
@@ -752,6 +764,7 @@ function deletePhoto(id) {
   if(!userData.photos) userData.photos = [];
   userData.photos = userData.photos.filter(x => x.id !== id);
   commitCloud();
+  render();
   renderPhotoDatabase();
   toast('Photo deleted');
 }
@@ -1121,7 +1134,6 @@ function render() {
   renderPhotoDatabase();
   renderFriendsList();
   renderSpotifyEmbed('profileSpotifyPreview', userData.spotifyUrl || '');
-  renderHeaderSpotify(userData.spotifyUrl || '');
 }
 
 async function saveProfile() {
@@ -1131,6 +1143,8 @@ async function saveProfile() {
   userData.catColor = document.getElementById('catColorInput').value;
   userData.spotifyUrl = document.getElementById('spotifyInput').value.trim();
   commitCloud();
+  render();
+  renderHeaderSpotify(userData.spotifyUrl);
   fetchAllMembers();
   toast('Profile saved to Firebase!');
 }
