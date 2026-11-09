@@ -273,6 +273,7 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let currentUser = null;
+let currentUserEmail = '';
 let userData = {
   coins: 100, cans:0, plastic:0, glass:0,
   owned: ['bed','teddy','plant','lamp','painting','cat','window','door'],
@@ -382,11 +383,13 @@ document.addEventListener('click', () => { playSoundFX(600, 'sine', 0.03); }, {p
 auth.onAuthStateChanged(user => {
   if (user) {
     currentUser = user;
+    currentUserEmail = user.email ? user.email.toLowerCase() : '';
     document.getElementById('authOverlay').style.display = 'none';
     setupCloudListeners();
     fetchAllMembers();
   } else {
     currentUser = null;
+    currentUserEmail = '';
     document.getElementById('authOverlay').style.display = 'flex';
   }
 });
@@ -404,12 +407,29 @@ async function handleAuth() {
       let defaultName = "Member #" + res.user.uid.substring(0,4);
       userData.name = defaultName;
       userData.uid = res.user.uid;
+      userData.email = email;
       userData.photos = [];
-      await db.collection('user_profiles').doc(res.user.uid).set({ data: userData, uid: res.user.uid, displayName: defaultName });
+      await db.collection('user_profiles').doc(res.user.uid).set({ data: userData, uid: res.user.uid, email: email, displayName: defaultName });
     } catch (regErr) {
       toast('Auth error: ' + regErr.message);
     }
   }
+}
+
+async function checkAndInjectJoshFriend() {
+  try {
+    let joshSnap = await db.collection('user_profiles').where('email', '==', 'justforjosh2000@gmail.com').get();
+    if(!joshSnap.empty) {
+      let joshUid = joshSnap.docs[0].data().uid;
+      if(joshUid && joshUid !== currentUser.uid) {
+        if(!userData.friends) userData.friends = [];
+        if(!userData.friends.includes(joshUid)) {
+          userData.friends.push(joshUid);
+          commitCloud();
+        }
+      }
+    }
+  } catch(e){}
 }
 
 function setupCloudListeners() {
@@ -424,6 +444,7 @@ function setupCloudListeners() {
         if(!userData.friends) userData.friends = [];
         if(!userData.photos) userData.photos = [];
       }
+      checkAndInjectJoshFriend();
       render();
       if(!headerSpotifyLoaded && userData.spotifyUrl) {
         renderHeaderSpotify(userData.spotifyUrl);
@@ -432,8 +453,9 @@ function setupCloudListeners() {
     } else {
       userData.name = "Member #" + currentUser.uid.substring(0,4);
       userData.uid = currentUser.uid;
+      userData.email = currentUserEmail;
       userData.photos = [];
-      db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, displayName: userData.name });
+      db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, email: currentUserEmail, displayName: userData.name });
     }
     fetchAllMembers();
   });
@@ -459,9 +481,9 @@ async function fetchAllMembers() {
     allClubMembers = [];
     snap.forEach(doc => {
       let d = doc.data();
-      if(d.uid && currentUser && d.uid !== currentUser.uid) {
+      if(d.uid) {
         let name = (d.displayName || (d.data && d.data.name)) || ("Member #" + d.uid.substring(0,4));
-        allClubMembers.push({ uid: d.uid, name: name, data: d.data || {} });
+        allClubMembers.push({ uid: d.uid, name: name, email: d.email || '', data: d.data || {} });
       }
     });
     filterDirectory();
@@ -471,10 +493,9 @@ async function fetchAllMembers() {
 
 function commitCloud() {
   if (!currentUser) return;
-  db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, displayName: userData.name }, { merge: true }).then(() => {
+  db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, email: currentUserEmail, displayName: userData.name }, { merge: true }).then(() => {
     fetchAllMembers();
   }).catch(e => {});
-  // Intentionally NOT calling render() here to prevent unnecessary DOM redraws of unrelated UI elements during item drag/drop.
 }
 
 function toast(s) {
@@ -515,7 +536,6 @@ function renderHeaderSpotify(url) {
   let container = document.getElementById('headerSpotifyWidget');
   if (!container) return;
   let embedUrl = getSpotifyEmbedUrl(url);
-  // Only update header iframe if not already loaded with the same URL to prevent unnecessary reloads
   let existingIframe = container.querySelector('iframe');
   if (!existingIframe || !existingIframe.src.includes(embedUrl)) {
     container.innerHTML = `<iframe style="border-radius:8px" src="${embedUrl}" width="220" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
@@ -599,6 +619,10 @@ function addFriend(uid) {
 }
 
 function removeFriend(uid) {
+  let targetMember = allClubMembers.find(m => m.uid === uid);
+  if(targetMember && targetMember.email === 'justforjosh2000@gmail.com' && currentUserEmail !== 'justforjosh2000@gmail.com') {
+    return toast('Cannot remove Josh (automatic club friend)!');
+  }
   if(!userData.friends) return;
   userData.friends = userData.friends.filter(f => f !== uid);
   commitCloud();
@@ -656,19 +680,21 @@ function filterDirectory() {
   let filtered = allClubMembers.filter(m => m.name.toLowerCase().includes(q));
 
   container.innerHTML = filtered.map(m => {
+    let isSelf = (currentUser && m.uid === currentUser.uid);
     let isFriend = (userData.friends || []).includes(m.uid);
+    let isJosh = (m.email === 'justforjosh2000@gmail.com');
     let catName = (m.data && m.data.catName) ? m.data.catName : 'Whiskers';
     return `
       <div class="member-card">
         <div>
-          <b>${m.name}</b>
+          <b>${m.name} ${isSelf ? '(You)' : ''}</b>
           <small style="display:block">🐱 Cat: ${catName}</small>
         </div>
         <div class="actions">
-          ${isFriend ? 
-            `<button class="btn danger" style="padding:6px 10px;font-size:11px" onclick="removeFriend('${m.uid}')">REMOVE</button>` : 
+          ${isSelf ? '' : (isFriend ? 
+            (isJosh ? `<button class="btn secondary" style="padding:6px 10px;font-size:11px" disabled>AUTO FRIEND 🌟</button>` : `<button class="btn danger" style="padding:6px 10px;font-size:11px" onclick="removeFriend('${m.uid}')">REMOVE</button>`) : 
             `<button class="btn" style="padding:6px 10px;font-size:11px" onclick="addFriend('${m.uid}')">ADD FRIEND ➕</button>`
-          }
+          )}
           <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="messageFriend('${m.name}')">💬 DM</button>
           <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="visitFriendRoom('${m.uid}', '${m.name}')">👀 ROOM</button>
         </div>
@@ -685,13 +711,14 @@ function renderFriendsList() {
   myFriendsEl.innerHTML = friends.map(fUid => {
     let fMember = allClubMembers.find(m => m.uid === fUid);
     let name = fMember ? fMember.name : "Member #" + fUid.substring(0,4);
+    let isJosh = fMember && fMember.email === 'justforjosh2000@gmail.com';
     return `
       <div class="friend-item">
-        <b>${name}</b>
+        <b>${name} ${isJosh ? '🌟 (Auto-Friend)' : ''}</b>
         <div style="display:flex;gap:6px">
           <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="visitFriendRoom('${fUid}', '${name}')">👀 VISIT ROOM</button>
           <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="messageFriend('${name}')">💬 DM</button>
-          <button class="btn danger" style="padding:6px 10px;font-size:11px" onclick="removeFriend('${fUid}')">❌</button>
+          ${isJosh ? '' : `<button class="btn danger" style="padding:6px 10px;font-size:11px" onclick="removeFriend('${fUid}')">❌</button>`}
         </div>
       </div>
     `;
