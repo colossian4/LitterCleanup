@@ -53,7 +53,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 #roomCanvasContainer{position:relative;width:100%;height:480px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
 #roomCanvasContainer canvas{display:block;width:100%!important;height:100%!important}
 .room-instructions{position:absolute;bottom:12px;left:12px;background:rgba(11,19,16,0.92);border:1px solid var(--line);padding:6px 12px;border-radius:8px;font:11px 'DM Mono';color:var(--lime);pointer-events:none}
-.rotate-btn-overlay{position:absolute;top:12px;right:12px;z-index:5}
+.room-top-controls{position:absolute;top:12px;right:12px;display:flex;gap:8px;z-index:5}
 .active-item-banner{position:absolute;top:12px;left:12px;background:rgba(210,245,103,0.9);color:#121c16;padding:6px 14px;border-radius:8px;font:12px 'DM Mono';font-weight:800;display:none;z-index:5;box-shadow:0 4px 0 rgba(0,0,0,0.2)}
 
 .shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.shopitem{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}.shopitem b{font-size:13px;display:block;margin-bottom:6px}.shopitem small{color:var(--lime);font:11px 'DM Mono';display:block;margin-bottom:10px}
@@ -82,7 +82,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 .friend-item{display:flex;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);padding:10px 14px;border-radius:10px;margin-bottom:8px}
 .spotify-container{margin-top:12px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--bg)}
 
-#authOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(11,19,16,0.96);display:flex;align-items:center;justify-content:center;z-index:1000}
+#authOverlay,#usernameOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(11,19,16,0.96);display:flex;align-items:center;justify-content:center;z-index:1000}
 .auth-box{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px;width:100%;max-width:380px;text-align:center;box-shadow:0 12px 0 var(--shadow)}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--lime);color:#121c16;padding:12px 20px;border-radius:10px;font-weight:900;display:none;z-index:2000;box-shadow:0 6px 0 rgba(0,0,0,0.3)}
 @media(max-width:768px){.layout{grid-template-columns:1fr}.sidebar{position:static;display:flex;overflow-x:auto;padding:8px}.nav{padding:8px 12px;font-size:12px}.shopgrid{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
@@ -98,6 +98,16 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
     <input class="field" id="authEmail" type="email" placeholder="Email Address" style="margin-top:10px">
     <input class="field" id="authPassword" type="password" placeholder="Password">
     <button type="button" class="btn full" onclick="handleAuth()">SIGN IN / REGISTER ✨</button>
+  </div>
+</div>
+
+<div id="usernameOverlay" style="display:none">
+  <div class="auth-box">
+    <div style="font-size:42px;margin-bottom:8px">🏷️</div>
+    <h2 style="margin:0 0 6px">Choose Your Username</h2>
+    <p class="sub">How would you like other club members to see you?</p>
+    <input class="field" id="onboardingUsernameInput" type="text" placeholder="e.g. EcoWarrior" style="margin-top:10px">
+    <button type="button" class="btn full" onclick="saveOnboardingUsername()">SET USERNAME & ENTER 🚀</button>
   </div>
 </div>
 
@@ -183,7 +193,10 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
       </div>
       <div id="roomCanvasContainer">
         <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
-        <button class="btn secondary rotate-btn-overlay" id="rotateRoomBtn" onclick="rotateCurrentFurniture()">🔄 Rotate (R)</button>
+        <div class="room-top-controls">
+          <button class="btn secondary" id="expandRoomBtn" style="padding:6px 10px;font-size:11px" onclick="expandRoom()">📐 Expand Room (100 🪙)</button>
+          <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
+        </div>
         <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Click Rotate or press R to spin</div>
       </div>
       <div id="friendSpotifyContainer" class="spotify-container" style="display:none"></div>
@@ -278,16 +291,17 @@ let currentUser = null;
 let currentUserEmail = '';
 let userData = {
   coins: 100, cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0,
+  roomLevel: 0,
   owned: ['bed','teddy','plant','lamp','painting','cat','window','door'],
   positions: {
-    bed:{x:-1.8,y:0,z:-1.8,rot:0},
-    teddy:{x:-1.8,y:0.4,z:-1.5,rot:0},
-    cat:{x:-1.8,y:0.4,z:-1.9,rot:0},
-    plant:{x:2,y:0,z:2,rot:0},
-    lamp:{x:1.8,y:0,z:-1.8,rot:0},
-    painting:{x:-1.5,y:3.2,z:-3.92,rot:0,wall:'back'},
-    window:{x:1.5,y:3.2,z:-3.92,rot:0,wall:'back'},
-    door:{x:-3.92,y:1.5,z:1.5,rot:Math.PI/2,wall:'left'}
+    bed:{x:-1.0,y:0,z:-1.0,rot:0},
+    teddy:{x:-1.0,y:0.4,z:-0.8,rot:0},
+    cat:{x:-1.0,y:0.4,z:-1.2,rot:0},
+    plant:{x:1.0,y:0,z:1.0,rot:0},
+    lamp:{x:1.0,y:0,z:-1.0,rot:0},
+    painting:{x:-1.0,y:2.5,z:-1.92,rot:0,wall:'back'},
+    window:{x:1.0,y:2.5,z:-1.92,rot:0,wall:'back'},
+    door:{x:-1.92,y:1.5,z:1.0,rot:Math.PI/2,wall:'left'}
   },
   name: '',
   uid: '',
@@ -393,6 +407,7 @@ auth.onAuthStateChanged(user => {
     currentUser = null;
     currentUserEmail = '';
     document.getElementById('authOverlay').style.display = 'flex';
+    document.getElementById('usernameOverlay').style.display = 'none';
   }
 });
 
@@ -406,16 +421,27 @@ async function handleAuth() {
   } catch (err) {
     try {
       let res = await auth.createUserWithEmailAndPassword(email, password);
-      let defaultName = "Member #" + res.user.uid.substring(0,4);
-      userData.name = defaultName;
       userData.uid = res.user.uid;
       userData.email = email;
       userData.photos = [];
-      await db.collection('user_profiles').doc(res.user.uid).set({ data: userData, uid: res.user.uid, email: email, displayName: defaultName });
+      // Prompt for username on new registration
+      document.getElementById('authOverlay').style.display = 'none';
+      document.getElementById('usernameOverlay').style.display = 'flex';
     } catch (regErr) {
       toast('Auth error: ' + regErr.message);
     }
   }
+}
+
+async function saveOnboardingUsername() {
+  let uName = document.getElementById('onboardingUsernameInput').value.trim();
+  if(!uName) return toast('Please enter a username!');
+  userData.name = uName;
+  userData.uid = currentUser.uid;
+  userData.email = currentUserEmail;
+  document.getElementById('usernameOverlay').style.display = 'none';
+  commitCloud();
+  toast('Welcome to Cleanup Club, ' + uName + '! 🎉');
 }
 
 async function checkAndInjectJoshFriend() {
@@ -441,8 +467,8 @@ function setupCloudListeners() {
     if (doc.exists) {
       let d = doc.data();
       if(d.data) {
-        // Safely merge cloud data without overwriting local unsaved state if active
         userData.coins = d.data.coins !== undefined ? d.data.coins : userData.coins;
+        userData.roomLevel = d.data.roomLevel !== undefined ? d.data.roomLevel : userData.roomLevel;
         userData.owned = d.data.owned || userData.owned;
         userData.positions = d.data.positions || userData.positions;
         userData.name = d.data.name || userData.name;
@@ -451,7 +477,12 @@ function setupCloudListeners() {
         userData.spotifyUrl = d.data.spotifyUrl || userData.spotifyUrl;
         userData.friends = d.data.friends || userData.friends;
         userData.photos = d.data.photos || userData.photos;
-        if(!userData.name) userData.name = "Member #" + currentUser.uid.substring(0,4);
+      }
+      if(!userData.name) {
+        // If profile exists in auth but has no name set, prompt for username
+        document.getElementById('usernameOverlay').style.display = 'flex';
+      } else {
+        document.getElementById('usernameOverlay').style.display = 'none';
       }
       checkAndInjectJoshFriend();
       render();
@@ -460,11 +491,8 @@ function setupCloudListeners() {
         headerSpotifyLoaded = true;
       }
     } else {
-      userData.name = "Member #" + currentUser.uid.substring(0,4);
-      userData.uid = currentUser.uid;
-      userData.email = currentUserEmail;
-      userData.photos = [];
-      db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, email: currentUserEmail, displayName: userData.name });
+      // Profile doc doesn't exist yet, prompt for username
+      document.getElementById('usernameOverlay').style.display = 'flex';
     }
     fetchAllMembers();
   });
@@ -611,11 +639,24 @@ function buy(id) {
   if (userData.coins < p.price) return toast('Need more points!');
   userData.coins -= p.price;
   userData.owned.push(id);
-  userData.positions[id] = p.isWallItem ? {x:0, y:3, z:-3.92, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
+  let limit = 2 + (userData.roomLevel || 0);
+  userData.positions[id] = p.isWallItem ? {x:0, y:2.5, z:-limit, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
   commitCloud();
   render();
   init3DRoom();
   toast('Purchased ' + p.name + '!');
+}
+
+function expandRoom() {
+  if (visitingFriendUid) return;
+  if (userData.roomLevel >= 4) return toast('Room is already at maximum 8x8 size!');
+  if (userData.coins < 100) return toast('Need 100 coins to expand room!');
+  userData.coins -= 100;
+  userData.roomLevel = (userData.roomLevel || 0) + 1;
+  commitCloud();
+  render();
+  init3DRoom();
+  toast('Room expanded! 🎉 (' + (4 + userData.roomLevel) + 'x' + (4 + userData.roomLevel) + ')');
 }
 
 function addFriend(uid) {
@@ -851,22 +892,19 @@ function createItemModel(id, customCatColor=0xffa500, activeDataObj=null) {
   else if(id==='sofa'){ addBox(2.2, 0.45, 0.9, 0x1e90ff, 0, 0.225, 0); addBox(2.2, 0.9, 0.25, 0x0000cd, 0, 0.65, -0.325); }
   else if(id==='painting'){ addBox(1.2, 0.9, 0.08, 0x8b4513, 0, 0, 0); addBox(1.0, 0.7, 0.1, 0xffd700, 0, 0, 0.02); }
   else if(id==='window'){ 
-    // Detailed multi-pane window design
-    addBox(1.5, 1.5, 0.12, 0x3b220d, 0, 0, 0); // Outer frame
-    addBox(1.3, 1.3, 0.04, 0x87ceeb, 0, 0, 0.01); // Glass pane
-    addBox(0.08, 1.3, 0.08, 0x3b220d, 0, 0, 0.02); // Vertical mullion bar
-    addBox(1.3, 0.08, 0.08, 0x3b220d, 0, 0, 0.02); // Horizontal mullion bar
-    addBox(1.5, 0.15, 0.18, 0x4e3113, 0, -0.75, 0.05); // Windowsill ledge
+    addBox(1.5, 1.5, 0.12, 0x3b220d, 0, 0, 0);
+    addBox(1.3, 1.3, 0.04, 0x87ceeb, 0, 0, 0.01);
+    addBox(0.08, 1.3, 0.08, 0x3b220d, 0, 0, 0.02);
+    addBox(1.3, 0.08, 0.08, 0x3b220d, 0, 0, 0.02);
+    addBox(1.5, 0.15, 0.18, 0x4e3113, 0, -0.75, 0.05);
   }
   else if(id==='door'){ 
-    // Detailed paneled wood door design with brass knob
-    addBox(1.3, 2.4, 0.14, 0x4a2e18, 0, 0, 0); // Outer frame/slab
-    addBox(1.1, 2.2, 0.06, 0x633e22, 0, 0, 0.04); // Recessed main panel
-    addBox(0.45, 0.8, 0.08, 0x3b220d, -0.28, 0.5, 0.06); // Upper wood inset panel
-    addBox(0.45, 0.8, 0.08, 0x3b220d, 0.28, 0.5, 0.06); // Upper wood inset panel
-    addBox(0.45, 0.8, 0.08, 0x3b220d, -0.28, -0.4, 0.06); // Lower wood inset panel
-    addBox(0.45, 0.8, 0.08, 0x3b220d, 0.28, -0.4, 0.06); // Lower wood inset panel
-    // Door knob
+    addBox(1.3, 2.4, 0.14, 0x4a2e18, 0, 0, 0);
+    addBox(1.1, 2.2, 0.06, 0x633e22, 0, 0, 0.04);
+    addBox(0.45, 0.8, 0.08, 0x3b220d, -0.28, 0.5, 0.06);
+    addBox(0.45, 0.8, 0.08, 0x3b220d, 0.28, 0.5, 0.06);
+    addBox(0.45, 0.8, 0.08, 0x3b220d, -0.28, -0.4, 0.06);
+    addBox(0.45, 0.8, 0.08, 0x3b220d, 0.28, -0.4, 0.06);
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 16), new THREE.MeshStandardMaterial({color: 0xffd700, metalness: 0.8, roughness: 0.2}));
     knob.position.set(0.42, 0, 0.1);
     group.add(knob);
@@ -912,15 +950,21 @@ function init3DRoom() {
 
     let isVisiting = !!visitingFriendUid;
     let targetData = isVisiting ? visitingFriendData : userData;
+    let rLevel = targetData.roomLevel || 0;
+    let roomSize = 4 + rLevel;
 
-    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room";
+    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room (" + roomSize + "x" + roomSize + ")";
     document.getElementById('returnRoomBtn').style.display = isVisiting ? "inline-block" : "none";
+    document.getElementById('expandRoomBtn').style.display = (isVisiting || rLevel >= 4) ? "none" : "inline-block";
     document.getElementById('rotateRoomBtn').style.display = isVisiting ? "none" : "inline-block";
     document.getElementById('roomInstructText').textContent = isVisiting ? "👀 Viewing Mode · Interactive edit disabled" : "📱 Click/Tap object to select & drag · Click Rotate or press R to spin";
 
     container.innerHTML = `
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
-      ${isVisiting ? '' : '<button class="btn secondary rotate-btn-overlay" onclick="rotateCurrentFurniture()">🔄 Rotate (R)</button>'}
+      <div class="room-top-controls">
+        ${isVisiting || rLevel >= 4 ? '' : '<button class="btn secondary" id="expandRoomBtn" style="padding:6px 10px;font-size:11px" onclick="expandRoom()">📐 Expand Room (100 🪙)</button>'}
+        ${isVisiting ? '' : '<button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>'}
+      </div>
       <div class="room-instructions">${isVisiting ? '👀 Visiting Room Mode' : '📱 Click/Tap object to select & drag · Click Rotate or press R to spin'}</div>
     `;
 
@@ -928,7 +972,8 @@ function init3DRoom() {
     scene.background = new THREE.Color(0x13221a);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(9, 7, 9);
+    let camDist = 7 + rLevel * 1.2;
+    camera.position.set(camDist, camDist * 0.8, camDist);
     camera.lookAt(0, 1, 0);
 
     const renderer = new THREE.WebGLRenderer({antialias: true});
@@ -940,20 +985,22 @@ function init3DRoom() {
     dirLight.position.set(6, 14, 6);
     scene.add(dirLight);
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshStandardMaterial({color: 0x1d3026, roughness: 0.3}));
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), new THREE.MeshStandardMaterial({color: 0x1d3026, roughness: 0.3}));
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
-    const grid = new THREE.GridHelper(8, 8, 0x365444, 0x253b2f);
+    const grid = new THREE.GridHelper(roomSize, roomSize, 0x365444, 0x253b2f);
     grid.position.y = 0.01;
     scene.add(grid);
 
     const wallMat = new THREE.MeshStandardMaterial({color: 0x16261e, roughness: 0.8});
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(8, 6), wallMat);
-    backWall.position.set(0, 3, -4);
+    const halfSize = roomSize / 2;
+
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
+    backWall.position.set(0, 3, -halfSize);
     scene.add(backWall);
 
-    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(8, 6), wallMat);
-    leftWall.position.set(-4, 3, 0);
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
+    leftWall.position.set(-halfSize, 3, 0);
     leftWall.rotation.y = Math.PI / 2;
     scene.add(leftWall);
 
@@ -1023,20 +1070,22 @@ function init3DRoom() {
       raycaster.setFromCamera(mouse, camera);
 
       let pDef = products.find(p => p.id === activeSelectedFurniture.userData.id);
+      let limit = halfSize - 0.08;
+      let bound = halfSize - 0.5;
 
       if (pDef && pDef.isWallItem) {
         let backIntersect = new THREE.Vector3();
         let leftIntersect = new THREE.Vector3();
-        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1), 3.92), backIntersect);
-        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(1,0,0), 3.92), leftIntersect);
+        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1), limit), backIntersect);
+        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(1,0,0), limit), leftIntersect);
 
         if (Math.abs(leftIntersect.z) < Math.abs(backIntersect.x)) {
-          activeSelectedFurniture.position.set(-3.92, Math.max(1, Math.min(5, leftIntersect.y)), Math.max(-3.5, Math.min(3.5, leftIntersect.z)));
+          activeSelectedFurniture.position.set(-limit, Math.max(1, Math.min(5, leftIntersect.y)), Math.max(-bound, Math.min(bound, leftIntersect.z)));
           activeSelectedFurniture.rotation.y = Math.PI / 2;
           if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
           userData.positions[pDef.id].wall = 'left';
         } else {
-          activeSelectedFurniture.position.set(Math.max(-3.5, Math.min(3.5, backIntersect.x)), Math.max(1, Math.min(5, backIntersect.y)), -3.92);
+          activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, backIntersect.x)), Math.max(1, Math.min(5, backIntersect.y)), -limit);
           activeSelectedFurniture.rotation.y = 0;
           if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
           userData.positions[pDef.id].wall = 'back';
@@ -1045,8 +1094,8 @@ function init3DRoom() {
         const target = new THREE.Vector3();
         raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0), 0), target);
 
-        let targetX = Math.max(-3.2, Math.min(3.2, target.x));
-        let targetZ = Math.max(-3.2, Math.min(3.2, target.z));
+        let targetX = Math.max(-bound, Math.min(bound, target.x));
+        let targetZ = Math.max(-bound, Math.min(bound, target.z));
         let targetY = 0;
 
         if (pDef && pDef.canStackOnSurface) {
