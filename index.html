@@ -232,6 +232,9 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
           <select class="field" id="activeWallSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeActiveWall(this.value)">
             <option value="all">ALL Walls 🌟</option>
             <option value="back">Back Wall</option>
+            <option value="left">Left Wall</option>
+            <option value="right">Right Wall</option>
+            <option value="front">Front Wall</option>
           </select>
           <select class="field" id="activeWallpaperSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeRoomWallpaper(this.value)">
             <option value="0x16261e">Dark Green Paint</option>
@@ -397,17 +400,17 @@ let userData = {
     lamp:{x:1.2,y:0,z:-1.2,rot:0},
     painting:{x:-1.2,y:2.5,z:-3.42,rot:0,wall:'back'},
     window:{x:1.2,y:2.5,z:-3.42,rot:0,wall:'back'},
-    door:{x:-3.42,y:1.5,z:1.2,rot:Math.PI/2,wall:'back'},
+    door:{x:-3.42,y:1.5,z:1.2,rot:Math.PI/2,wall:'left'},
     sofa:{x:0,y:0,z:1.2,rot:0},
     desk:{x:1.2,y:0,z:0,rot:0},
-    guitar:{x:-3.42,y:1.5,z:-0.8,rot:Math.PI/2,wall:'back'},
+    guitar:{x:-3.42,y:1.5,z:-0.8,rot:Math.PI/2,wall:'left'},
     arcade:{x:-1.2,y:0,z:1.2,rot:0},
     tv:{x:0,y:0,z:-3.42,rot:0,wall:'back'},
-    bookcase:{x:-3.42,y:0,z:0,rot:Math.PI/2,wall:'back'},
+    bookcase:{x:-3.42,y:0,z:0,rot:Math.PI/2,wall:'left'},
     gaming_pc:{x:1.2,y:0.8,z:0,rot:0},
     snake_plant:{x:-1.2,y:0,z:0,rot:0}
   },
-  wallpapers: { back: '0x16261e' },
+  wallpapers: { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' },
   flooring: '0x1d3026',
   steps: 0,
   name: '',
@@ -433,7 +436,7 @@ let viewingProfileUid = null;
 let currentCamDist = 6.8;
 let currentCameraAngleX = Math.PI / 4;
 let currentCameraAngleY = Math.PI / 4;
-let activeCustomizeWall = 'back';
+let activeCustomizeWall = 'all';
 
 let friendCamDist = 6.8;
 let friendCameraAngleX = Math.PI / 4;
@@ -465,14 +468,26 @@ function resetFriendRoomView() {
 
 function changeActiveWall(wallName) {
   activeCustomizeWall = wallName;
-  if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e' };
-  document.getElementById('activeWallpaperSelect').value = userData.wallpapers.back || '0x16261e';
+  if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+  if(wallName === 'all') {
+    document.getElementById('activeWallpaperSelect').value = userData.wallpapers.back || '0x16261e';
+  } else {
+    document.getElementById('activeWallpaperSelect').value = userData.wallpapers[wallName] || '0x16261e';
+  }
 }
 
 function changeRoomWallpaper(val) {
-  if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e' };
-  userData.wallpapers.back = val;
-  toast('Back wall wallpaper updated!');
+  if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+  if(activeCustomizeWall === 'all') {
+    userData.wallpapers.back = val;
+    userData.wallpapers.left = val;
+    userData.wallpapers.right = val;
+    userData.wallpapers.front = val;
+    toast('Applied wallpaper to ALL walls!');
+  } else {
+    userData.wallpapers[activeCustomizeWall] = val;
+    toast(activeCustomizeWall.toUpperCase() + ' wall wallpaper updated!');
+  }
   commitCloud();
   init3DRoom();
 }
@@ -641,7 +656,7 @@ function setupCloudListeners() {
       userData.owned = sourceObj.owned || userData.owned;
       userData.placed = sourceObj.placed || userData.owned;
       userData.positions = sourceObj.positions || userData.positions;
-      userData.wallpapers = sourceObj.wallpapers || { back: '0x16261e' };
+      userData.wallpapers = sourceObj.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
       userData.flooring = sourceObj.flooring || userData.flooring;
       userData.steps = sourceObj.steps !== undefined ? sourceObj.steps : userData.steps;
       userData.name = sourceObj.name || userData.name;
@@ -1002,9 +1017,17 @@ function buy(id) {
   if(!userData.owned.includes(id)) userData.owned.push(id);
   
   if(p.isWallpaper) {
-    if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e' };
-    userData.wallpapers.back = p.colorValue;
-    toast('Applied ' + p.name + ' to back wall!');
+    if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    if(activeCustomizeWall === 'all') {
+      userData.wallpapers.back = p.colorValue;
+      userData.wallpapers.left = p.colorValue;
+      userData.wallpapers.right = p.colorValue;
+      userData.wallpapers.front = p.colorValue;
+      toast('Applied ' + p.name + ' to ALL walls!');
+    } else {
+      userData.wallpapers[activeCustomizeWall] = p.colorValue;
+      toast('Applied ' + p.name + ' to ' + activeCustomizeWall + ' wall!');
+    }
     commitCloud();
     render();
     init3DRoom();
@@ -1043,9 +1066,17 @@ function storeItem(id) {
 function placeItem(id) {
   let pDef = products.find(p => p.id === id);
   if(pDef && pDef.isWallpaper) {
-    if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e' };
-    userData.wallpapers.back = pDef.colorValue;
-    toast('Applied wallpaper to back wall!');
+    if(!userData.wallpapers) userData.wallpapers = { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    if(activeCustomizeWall === 'all') {
+      userData.wallpapers.back = pDef.colorValue;
+      userData.wallpapers.left = pDef.colorValue;
+      userData.wallpapers.right = pDef.colorValue;
+      userData.wallpapers.front = pDef.colorValue;
+      toast('Applied wallpaper to ALL walls!');
+    } else {
+      userData.wallpapers[activeCustomizeWall] = pDef.colorValue;
+      toast('Applied wallpaper to ' + activeCustomizeWall + ' wall!');
+    }
     commitCloud();
     render();
     init3DRoom();
@@ -1379,9 +1410,9 @@ function init3DRoom() {
     let height = container.clientHeight || 420;
     let roomSize = 7;
 
-    let wallColors = userData.wallpapers || { back: '0x16261e' };
-    document.getElementById('activeWallSelect').value = 'back';
-    document.getElementById('activeWallpaperSelect').value = wallColors.back || '0x16261e';
+    let wallColors = userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    document.getElementById('activeWallSelect').value = activeCustomizeWall;
+    document.getElementById('activeWallpaperSelect').value = activeCustomizeWall === 'all' ? (wallColors.back || '0x16261e') : (wallColors[activeCustomizeWall] || '0x16261e');
     document.getElementById('activeFlooringSelect').value = userData.flooring || '0x1d3026';
 
     container.innerHTML = `
@@ -1429,12 +1460,23 @@ function init3DRoom() {
 
     const halfSize = roomSize / 2;
 
-    // Only render the permanent back wall
-    const backWallMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.back || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), backWallMat);
-    backWall.position.set(0, 3, -halfSize);
-    backWall.userData = { wallName: 'back' };
-    scene.add(backWall);
+    const createWall = (name, x, y, z, rotY, colorHex) => {
+      const mat = new THREE.MeshStandardMaterial({color: parseInt(colorHex), roughness: 0.8, side: THREE.DoubleSide});
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), mat);
+      wall.position.set(x, y, z);
+      wall.rotation.y = rotY;
+      wall.userData = { wallName: name };
+      scene.add(wall);
+      return wall;
+    };
+
+    const backWall  = createWall('back',   0,        3, -halfSize, 0,          wallColors.back  || '0x16261e');
+    const leftWall  = createWall('left',  -halfSize, 3,  0,        Math.PI/2,  wallColors.left  || '0x16261e');
+    const rightWall = createWall('right',  halfSize, 3,  0,       -Math.PI/2,  wallColors.right || '0x16261e');
+    const frontWall = createWall('front',  0,        3,  halfSize, Math.PI,    wallColors.front || '0x16261e');
+
+    const walls = [backWall, leftWall, rightWall, frontWall];
+    const wallMap = { back: backWall, left: leftWall, right: rightWall, front: frontWall };
 
     const furnitureMeshes = [];
     let itemsToRender = userData.placed || userData.owned;
@@ -1452,11 +1494,42 @@ function init3DRoom() {
         const group = createItemModel(id, 0xffa500, userData);
         group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
         group.rotation.y = pos.rot || 0;
-        group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight, wall: 'back' };
+        group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight, wall: pos.wall || 'back' };
         scene.add(group);
         furnitureMeshes.push(group);
       });
     }
+
+    // Corrected occlusion check: Hide foreground walls (dot > 0.15) and keep background walls visible
+    function updateWallVisibility() {
+      const camDir = new THREE.Vector3().subVectors(camera.position, new THREE.Vector3(0, 0.8, 0));
+      camDir.y = 0;
+      camDir.normalize();
+
+      walls.forEach((w) => {
+        let wallNormal = new THREE.Vector3(0, 0, 1);
+        if (w.userData.wallName === 'back')  wallNormal.set(0, 0, 1);
+        if (w.userData.wallName === 'left')  wallNormal.set(1, 0, 0);
+        if (w.userData.wallName === 'right') wallNormal.set(-1, 0, 0);
+        if (w.userData.wallName === 'front') wallNormal.set(0, 0, -1);
+
+        let dot = camDir.dot(wallNormal);
+        let isVisible = dot > 0.15; // Only show walls facing away from/perpendicular to camera (background walls)
+
+        w.visible = isVisible;
+        w.raycast = isVisible ? THREE.Mesh.prototype.raycast : () => {};
+      });
+
+      furnitureMeshes.forEach(fm => {
+        if (fm.userData.isWallItem) {
+          let parentWall = wallMap[fm.userData.wall || 'back'];
+          if (parentWall) {
+            fm.visible = parentWall.visible;
+          }
+        }
+      });
+    }
+    updateWallVisibility();
 
     let isDragging = false;
     let isOrbiting = false;
@@ -1541,6 +1614,7 @@ function init3DRoom() {
         currentCameraAngleY -= deltaX * 0.008;
         currentCameraAngleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, currentCameraAngleX + deltaY * 0.008));
         updateCameraPosition();
+        updateWallVisibility();
         return;
       }
 
@@ -1553,15 +1627,39 @@ function init3DRoom() {
       let bound = halfSize - 0.5;
 
       if (pDef && pDef.isWallItem) {
-        let planeNormal = new THREE.Vector3(0,0,1).applyQuaternion(backWall.quaternion);
-        let plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, backWall.position);
-        let point = new THREE.Vector3();
-        if(raycaster.ray.intersectPlane(plane, point)) {
-          activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, point.x)), Math.max(1, Math.min(5, point.y)), -limit);
-          activeSelectedFurniture.rotation.y = 0;
-          activeSelectedFurniture.userData.wall = 'back';
+        let intersects = [];
+        walls.forEach(w => {
+          if(!w.visible) return;
+          let planeNormal = new THREE.Vector3(0,0,1).applyQuaternion(w.quaternion);
+          let plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, w.position);
+          let point = new THREE.Vector3();
+          if(raycaster.ray.intersectPlane(plane, point)) {
+            intersects.push({ wall: w, point: point, dist: point.distanceTo(raycaster.ray.origin) });
+          }
+        });
+        intersects.sort((a,b) => a.dist - b.dist);
+
+        if(intersects.length > 0) {
+          let hit = intersects[0];
+          let wallName = hit.wall.userData.wallName;
+          let pt = hit.point;
+
+          if(wallName === 'back') {
+            activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, pt.x)), Math.max(1, Math.min(5, pt.y)), -limit);
+            activeSelectedFurniture.rotation.y = 0;
+          } else if(wallName === 'left') {
+            activeSelectedFurniture.position.set(-limit, Math.max(1, Math.min(5, pt.y)), Math.max(-bound, Math.min(bound, pt.z)));
+            activeSelectedFurniture.rotation.y = Math.PI / 2;
+          } else if(wallName === 'right') {
+            activeSelectedFurniture.position.set(limit, Math.max(1, Math.min(5, pt.y)), Math.max(-bound, Math.min(bound, pt.z)));
+            activeSelectedFurniture.rotation.y = -Math.PI / 2;
+          } else if(wallName === 'front') {
+            activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, pt.x)), Math.max(1, Math.min(5, pt.y)), limit);
+            activeSelectedFurniture.rotation.y = Math.PI;
+          }
+          activeSelectedFurniture.userData.wall = wallName;
           if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
-          userData.positions[pDef.id].wall = 'back';
+          userData.positions[pDef.id].wall = wallName;
         }
       } else {
         const target = new THREE.Vector3();
@@ -1666,13 +1764,25 @@ function initFriend3DRoom() {
     scene.add(grid);
 
     const halfSize = roomSize / 2;
-    let wallColors = targetData.wallpapers || { back: '0x16261e' };
+    let wallColors = targetData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
 
-    const backWallMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.back || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), backWallMat);
-    backWall.position.set(0, 3, -halfSize);
-    scene.add(backWall);
+    const createWall = (name, x, y, z, rotY, colorHex) => {
+      const mat = new THREE.MeshStandardMaterial({color: parseInt(colorHex), roughness: 0.8, side: THREE.DoubleSide});
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), mat);
+      wall.position.set(x, y, z);
+      wall.rotation.y = rotY;
+      wall.userData = { wallName: name };
+      scene.add(wall);
+      return wall;
+    };
 
+    const backWall  = createWall('back',   0,        3, -halfSize, 0,          wallColors.back  || '0x16261e');
+    const leftWall  = createWall('left',  -halfSize, 3,  0,        Math.PI/2,  wallColors.left  || '0x16261e');
+    const rightWall = createWall('right',  halfSize, 3,  0,       -Math.PI/2,  wallColors.right || '0x16261e');
+    const frontWall = createWall('front',  0,        3,  halfSize, Math.PI,    wallColors.front || '0x16261e');
+
+    const walls = [backWall, leftWall, rightWall, frontWall];
+    const wallMap = { back: backWall, left: leftWall, right: rightWall, front: frontWall };
     const friendFurniture = [];
 
     let itemsToRender = targetData.placed || targetData.owned;
@@ -1690,11 +1800,40 @@ function initFriend3DRoom() {
         const group = createItemModel(id, 0xffa500, targetData);
         group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
         group.rotation.y = pos.rot || 0;
-        group.userData = { isWallItem: pDef.isWallItem, wall: 'back' };
+        group.userData = { isWallItem: pDef.isWallItem, wall: pos.wall || 'back' };
         scene.add(group);
         friendFurniture.push(group);
       });
     }
+
+    function updateFriendWallVisibility() {
+      const camDir = new THREE.Vector3().subVectors(camera.position, new THREE.Vector3(0, 0.8, 0));
+      camDir.y = 0;
+      camDir.normalize();
+
+      walls.forEach((w) => {
+        let wallNormal = new THREE.Vector3(0, 0, 1);
+        if (w.userData.wallName === 'back')  wallNormal.set(0, 0, 1);
+        if (w.userData.wallName === 'left')  wallNormal.set(1, 0, 0);
+        if (w.userData.wallName === 'right') wallNormal.set(-1, 0, 0);
+        if (w.userData.wallName === 'front') wallNormal.set(0, 0, -1);
+
+        let dot = camDir.dot(wallNormal);
+        let isVisible = dot > 0.15;
+        w.visible = isVisible;
+        w.raycast = isVisible ? THREE.Mesh.prototype.raycast : () => {};
+      });
+
+      friendFurniture.forEach(fm => {
+        if (fm.userData.isWallItem) {
+          let parentWall = wallMap[fm.userData.wall || 'back'];
+          if (parentWall) {
+            fm.visible = parentWall.visible;
+          }
+        }
+      });
+    }
+    updateFriendWallVisibility();
 
     let isOrbiting = false;
     let prevMouseX = 0, prevMouseY = 0;
@@ -1709,6 +1848,7 @@ function initFriend3DRoom() {
       friendCameraAngleY -= deltaX * 0.008;
       friendCameraAngleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, friendCameraAngleX + deltaY * 0.008));
       updateFriendCamera();
+      updateFriendWallVisibility();
     });
     window.addEventListener('mouseup', () => { isOrbiting = false; });
 
@@ -1814,8 +1954,8 @@ function render() {
   }
 
   document.getElementById('shopgrid').innerHTML = products.map(p => {
-    let wallColors = userData.wallpapers || { back: '0x16261e' };
-    let isOwnedWallpaperOrFlooring = (p.isWallpaper && wallColors.back === p.colorValue) || (p.isFlooring && userData.flooring === p.colorValue);
+    let wallColors = userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    let isOwnedWallpaperOrFlooring = (p.isWallpaper && (activeCustomizeWall === 'all' ? wallColors.back === p.colorValue : wallColors[activeCustomizeWall] === p.colorValue)) || (p.isFlooring && userData.flooring === p.colorValue);
     return `
       <div class="shopitem">
         <b>${p.name}</b><small>${p.price} 🪙</small>
