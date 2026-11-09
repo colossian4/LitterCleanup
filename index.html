@@ -50,9 +50,9 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 .btn:disabled{opacity:.4;cursor:not-allowed}.full{width:100%}
 .field{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--cream);padding:12px;border-radius:10px;margin:8px 0 14px}.field:focus{outline:2px solid var(--lime)}textarea.field{resize:vertical;min-height:75px}
 
-#roomCanvasContainer{position:relative;width:100%;height:480px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
+#roomCanvasContainer{position:relative;width:100%;height:380px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
 #roomCanvasContainer canvas{display:block;width:100%!important;height:100%!important}
-#friendRoomCanvasContainer{position:relative;width:100%;height:480px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
+#friendRoomCanvasContainer{position:relative;width:100%;height:380px;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg);touch-action:none}
 #friendRoomCanvasContainer canvas{display:block;width:100%!important;height:100%!important}
 
 .room-instructions{position:absolute;bottom:12px;left:12px;background:rgba(11,19,16,0.92);border:1px solid var(--line);padding:6px 12px;border-radius:8px;font:11px 'DM Mono';color:var(--lime);pointer-events:none;z-index:5}
@@ -215,6 +215,20 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room (7x7)</h3>
+        <div style="display:flex;gap:8px">
+          <select class="field" id="activeWallpaperSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeRoomWallpaper(this.value)">
+            <option value="0x16261e">Dark Green Wall</option>
+            <option value="0x253b4c">Navy Wall</option>
+            <option value="0x3b2b23">Dark Brick Wall</option>
+            <option value="0xdcdcdc">Pastel Gray Wall</option>
+          </select>
+          <select class="field" id="activeFlooringSelect" style="margin:0;padding:6px 10px;font-size:12px;width:130px" onchange="changeRoomFlooring(this.value)">
+            <option value="0x1d3026">Green Floor</option>
+            <option value="0x5c4033">Wood Floor</option>
+            <option value="0x222222">Checkerboard Tile</option>
+            <option value="0x384759">Mint Carpet</option>
+          </select>
+        </div>
       </div>
       <div id="roomCanvasContainer">
         <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
@@ -247,7 +261,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   </section>
 
   <section class="view" id="shop">
-    <div class="panel"><h3>🪑 Furniture, Windows, Doors & Decor Shop</h3><div class="shopgrid" id="shopgrid"></div></div>
+    <div class="panel"><h3>🪑 Furniture, Windows, Doors, Wallpaper & Flooring Shop</h3><div class="shopgrid" id="shopgrid"></div></div>
   </section>
 
   <section class="view" id="social">
@@ -301,8 +315,8 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
         <option value="0x8b4513">Brown & Tan 🤎</option>
       </select>
 
-      <label class="sub" style="margin-top:14px">🎵 Header & Room Spotify Link (Track/Album/Playlist)</label>
-      <input class="field" id="spotifyInput" placeholder="https://open.spotify.com/playlist/..." oninput="previewSpotifyInput()">
+      <label class="sub" style="margin-top:14px">🎵 Music Spotlight Link (Spotify, Apple Music, or YouTube)</label>
+      <input class="field" id="spotifyInput" placeholder="Paste Spotify, Apple Music, or YouTube URL..." oninput="previewSpotifyInput()">
 
       <button class="btn" onclick="saveProfile()">SAVE PROFILE</button>
       <button class="btn secondary" onclick="firebase.auth().signOut()" style="margin-top:12px">SIGN OUT</button>
@@ -354,6 +368,8 @@ let userData = {
     gaming_pc:{x:1.2,y:0.8,z:0,rot:0},
     snake_plant:{x:-1.2,y:0,z:0,rot:0}
   },
+  wallpaper: '0x16261e',
+  flooring: '0x1d3026',
   steps: 0,
   name: '',
   uid: '',
@@ -523,6 +539,8 @@ function setupCloudListeners() {
       userData.owned = sourceObj.owned || userData.owned;
       userData.placed = sourceObj.placed || userData.owned;
       userData.positions = sourceObj.positions || userData.positions;
+      userData.wallpaper = sourceObj.wallpaper || userData.wallpaper;
+      userData.flooring = sourceObj.flooring || userData.flooring;
       userData.steps = sourceObj.steps !== undefined ? sourceObj.steps : userData.steps;
       userData.name = sourceObj.name || userData.name;
       userData.catName = sourceObj.catName || userData.catName;
@@ -594,6 +612,8 @@ function commitCloud() {
     owned: userData.owned,
     placed: userData.placed,
     positions: userData.positions,
+    wallpaper: userData.wallpaper,
+    flooring: userData.flooring,
     steps: userData.steps,
     name: userData.name,
     catName: userData.catName,
@@ -616,24 +636,73 @@ function toast(s) {
   setTimeout(() => t.style.display = 'none', 2500);
 }
 
-function getSpotifyEmbedUrl(inputUrl) {
-  if (!inputUrl) return 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0';
+function getMusicEmbedHtml(inputUrl) {
+  if (!inputUrl) return '<iframe style="border-radius:8px" src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>';
   try {
     let url = inputUrl.trim();
-    if(url.includes('spotify.com/embed/')) return url;
-    let match = url.match(/spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/);
-    if (match) {
-      return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+    // Spotify
+    if(url.includes('spotify.com')) {
+      if(url.includes('/embed/')) return `<iframe src="${url}" width="100%" height="152" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+      let match = url.match(/spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/);
+      if (match) {
+        return `<iframe src="https://open.spotify.com/embed/${match[1]}/${match[2]}" width="100%" height="152" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+      }
+    }
+    // Apple Music
+    if(url.includes('music.apple.com')) {
+      let embedUrl = url.replace('music.apple.com', 'embed.music.apple.com');
+      return `<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="152" style="width:100%;max-width:660px;overflow:hidden;background:transparent;" sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation" src="${embedUrl}"></iframe>`;
+    }
+    // YouTube / YouTube Music
+    if(url.includes('youtube.com') || url.includes('youtu.be')) {
+      let videoId = '';
+      if(url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1].split('?')[0];
+      } else if(url.includes('watch?v=')) {
+        videoId = url.split('watch?v=')[1].split('&')[0];
+      } else if(url.includes('embed/')) {
+        videoId = url.split('embed/')[1].split('?')[0];
+      }
+      if(videoId) {
+        return `<iframe width="100%" height="152" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+      }
     }
   } catch(e){}
-  return 'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0';
+  return `<iframe style="border-radius:8px" src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+}
+
+function getHeaderMusicEmbedHtml(inputUrl) {
+  if (!inputUrl) return '<iframe style="border-radius:8px" src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0" width="220" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>';
+  try {
+    let url = inputUrl.trim();
+    if(url.includes('spotify.com')) {
+      if(url.includes('/embed/')) return `<iframe style="border-radius:8px" src="${url}" width="220" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+      let match = url.match(/spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/);
+      if (match) {
+        return `<iframe style="border-radius:8px" src="https://open.spotify.com/embed/${match[1]}/${match[2]}" width="220" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+      }
+    }
+    if(url.includes('music.apple.com')) {
+      let embedUrl = url.replace('music.apple.com', 'embed.music.apple.com');
+      return `<iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0" height="80" style="width:220px;overflow:hidden;background:transparent;" src="${embedUrl}"></iframe>`;
+    }
+    if(url.includes('youtube.com') || url.includes('youtu.be')) {
+      let videoId = '';
+      if(url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
+      else if(url.includes('watch?v=')) videoId = url.split('watch?v=')[1].split('&')[0];
+      else if(url.includes('embed/')) videoId = url.split('embed/')[1].split('?')[0];
+      if(videoId) {
+        return `<iframe width="220" height="80" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>`;
+      }
+    }
+  } catch(e){}
+  return '<iframe style="border-radius:8px" src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0" width="220" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>';
 }
 
 function renderSpotifyEmbed(containerId, url) {
   let container = document.getElementById(containerId);
   if (!container) return;
-  let embedUrl = getSpotifyEmbedUrl(url);
-  container.innerHTML = `<iframe src="${embedUrl}" width="100%" height="152" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+  container.innerHTML = getMusicEmbedHtml(url);
   container.style.display = 'block';
 }
 
@@ -645,11 +714,7 @@ function previewSpotifyInput() {
 function renderHeaderSpotify(url) {
   let container = document.getElementById('headerSpotifyWidget');
   if (!container) return;
-  let embedUrl = getSpotifyEmbedUrl(url);
-  let existingIframe = container.querySelector('iframe');
-  if (!existingIframe || !existingIframe.src.includes(embedUrl)) {
-    container.innerHTML = `<iframe style="border-radius:8px" src="${embedUrl}" width="220" height="80" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
-  }
+  container.innerHTML = getHeaderMusicEmbedHtml(url);
 }
 
 function calcReward() { return counts.cans*5 + counts.plastic*10 + counts.glass*15 + counts.goodDeed*15 + counts.houseChore*20; }
@@ -683,7 +748,7 @@ function renderStepsStats() {
 }
 
 document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () => {
-  if(b.dataset.view === 'friendRoomTab') return; // Handled separately
+  if(b.dataset.view === 'friendRoomTab') return;
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x === b));
   let targetView = b.dataset.view;
   document.querySelectorAll('.view').forEach(x => {
@@ -729,17 +794,41 @@ const products = [
   {id:'tv',name:'TV Console',price:180, surfaceHeight: 0.65},
   {id:'bookcase',name:'Wooden Bookcase',price:110},
   {id:'gaming_pc',name:'Battlestation Rig',price:210, surfaceHeight: 0.8},
-  {id:'snake_plant',name:'Tall Snake Plant',price:50}
+  {id:'snake_plant',name:'Tall Snake Plant',price:50},
+  {id:'wallpaper_navy',name:'Navy Wall Paint',price:45, isWallpaper: true, colorValue: '0x253b4c'},
+  {id:'wallpaper_brick',name:'Dark Brick Wall',price:60, isWallpaper: true, colorValue: '0x3b2b23'},
+  {id:'wallpaper_pastel',name:'Pastel Gray Wall',price:45, isWallpaper: true, colorValue: '0xdcdcdc'},
+  {id:'flooring_wood',name:'Classic Wood Floor',price:60, isFlooring: true, colorValue: '0x5c4033'},
+  {id:'flooring_tile',name:'Checkerboard Tile',price:75, isFlooring: true, colorValue: '0x222222'},
+  {id:'flooring_carpet',name:'Mint Carpet',price:50, isFlooring: true, colorValue: '0x384759'}
 ];
 
 function buy(id) {
   let p = products.find(x => x.id === id);
   if (!p) return;
-  if (userData.owned.includes(id)) return toast('Already owned!');
+  if (userData.owned.includes(id) && !p.isWallpaper && !p.isFlooring) return toast('Already owned!');
   if (userData.coins < p.price) return toast('Need more points!');
   
   userData.coins -= p.price;
-  userData.owned.push(id);
+  if(!userData.owned.includes(id)) userData.owned.push(id);
+  
+  if(p.isWallpaper) {
+    userData.wallpaper = p.colorValue;
+    commitCloud();
+    render();
+    init3DRoom();
+    toast('Applied ' + p.name + ' wallpaper!');
+    return;
+  }
+  if(p.isFlooring) {
+    userData.flooring = p.colorValue;
+    commitCloud();
+    render();
+    init3DRoom();
+    toast('Applied ' + p.name + ' flooring!');
+    return;
+  }
+
   if(!userData.placed) userData.placed = [];
   userData.placed.push(id);
   
@@ -762,10 +851,27 @@ function storeItem(id) {
 }
 
 function placeItem(id) {
+  let pDef = products.find(p => p.id === id);
+  if(pDef && pDef.isWallpaper) {
+    userData.wallpaper = pDef.colorValue;
+    commitCloud();
+    render();
+    init3DRoom();
+    toast('Applied wallpaper!');
+    return;
+  }
+  if(pDef && pDef.isFlooring) {
+    userData.flooring = pDef.colorValue;
+    commitCloud();
+    render();
+    init3DRoom();
+    toast('Applied flooring!');
+    return;
+  }
+
   if(!userData.placed) userData.placed = [];
   if(!userData.placed.includes(id)) userData.placed.push(id);
   
-  let pDef = products.find(p => p.id === id);
   if(pDef && (!userData.positions || !userData.positions[id])) {
     if(!userData.positions) userData.positions = {};
     userData.positions[id] = pDef.isWallItem ? {x:0, y:2.5, z:-3.42, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
@@ -775,6 +881,20 @@ function placeItem(id) {
   render();
   init3DRoom();
   toast('Placed item into room! 🏡');
+}
+
+function changeRoomWallpaper(val) {
+  userData.wallpaper = val;
+  commitCloud();
+  init3DRoom();
+  toast('Wallpaper updated!');
+}
+
+function changeRoomFlooring(val) {
+  userData.flooring = val;
+  commitCloud();
+  init3DRoom();
+  toast('Flooring updated!');
 }
 
 function addFriend(uid) {
@@ -815,13 +935,10 @@ async function visitFriendRoom(uid, name) {
     visitingFriendUid = uid;
     visitingFriendData = d.data || d;
 
-    // Show friend room tab nav button
     let fNav = document.getElementById('friendRoomNavBtn');
     fNav.style.display = 'flex';
-    fNav.querySelector('span').textContent = '👀';
     fNav.innerHTML = `<span>👀</span>${name}'s Room`;
 
-    // Activate friend room tab
     document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.id === 'friendRoomNavBtn'));
     document.querySelectorAll('.view').forEach(x => {
       let isActive = (x.id === 'friendRoomTab');
@@ -842,7 +959,6 @@ function backToMyRoomTab() {
   visitingFriendData = null;
   document.getElementById('friendRoomNavBtn').style.display = 'none';
   
-  // Switch back to 'room' tab
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'room'));
   document.querySelectorAll('.view').forEach(x => {
     let isActive = (x.id === 'room');
@@ -1081,8 +1197,11 @@ function init3DRoom() {
     if (!container) return;
 
     let width = container.clientWidth || 600;
-    let height = container.clientHeight || 480;
+    let height = container.clientHeight || 380;
     let roomSize = 7;
+
+    document.getElementById('activeWallpaperSelect').value = userData.wallpaper || '0x16261e';
+    document.getElementById('activeFlooringSelect').value = userData.flooring || '0x1d3026';
 
     container.innerHTML = `
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
@@ -1110,14 +1229,16 @@ function init3DRoom() {
     dirLight.position.set(6, 14, 6);
     scene.add(dirLight);
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), new THREE.MeshStandardMaterial({color: 0x1d3026, roughness: 0.3}));
+    let floorColor = parseInt(userData.flooring || '0x1d3026');
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), new THREE.MeshStandardMaterial({color: floorColor, roughness: 0.3}));
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
     const grid = new THREE.GridHelper(roomSize, roomSize, 0x365444, 0x253b2f);
     grid.position.y = 0.01;
     scene.add(grid);
 
-    const wallMat = new THREE.MeshStandardMaterial({color: 0x16261e, roughness: 0.8});
+    let wallColor = parseInt(userData.wallpaper || '0x16261e');
+    const wallMat = new THREE.MeshStandardMaterial({color: wallColor, roughness: 0.8});
     const halfSize = roomSize / 2;
 
     const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
@@ -1134,7 +1255,7 @@ function init3DRoom() {
     if (userData && itemsToRender) {
       itemsToRender.forEach(id => {
         let pDef = products.find(p => p.id === id);
-        if (!pDef) return;
+        if (!pDef || pDef.isWallpaper || pDef.isFlooring) return;
         
         if(!userData.positions) userData.positions = {};
         if(!userData.positions[id]) {
@@ -1165,7 +1286,6 @@ function init3DRoom() {
       mouse.x = ((clientX - rect.left) / dom.clientWidth) * 2 - 1;
       mouse.y = -((clientY - rect.top) / dom.clientHeight) * 2 + 1;
       
-      // Check if mouse is over trash drop zone
       if(isDragging && trashZone) {
         let rx = clientX - rect.left;
         let ry = clientY - rect.top;
@@ -1299,7 +1419,7 @@ function initFriend3DRoom() {
     if (!container || !visitingFriendData) return;
 
     let width = container.clientWidth || 600;
-    let height = container.clientHeight || 480;
+    let height = container.clientHeight || 380;
     let roomSize = 7;
     let targetData = visitingFriendData;
 
@@ -1324,14 +1444,16 @@ function initFriend3DRoom() {
     dirLight.position.set(6, 14, 6);
     scene.add(dirLight);
 
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), new THREE.MeshStandardMaterial({color: 0x1d3026, roughness: 0.3}));
+    let floorColor = parseInt(targetData.flooring || '0x1d3026');
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, roomSize), new THREE.MeshStandardMaterial({color: floorColor, roughness: 0.3}));
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
     const grid = new THREE.GridHelper(roomSize, roomSize, 0x365444, 0x253b2f);
     grid.position.y = 0.01;
     scene.add(grid);
 
-    const wallMat = new THREE.MeshStandardMaterial({color: 0x16261e, roughness: 0.8});
+    let wallColor = parseInt(targetData.wallpaper || '0x16261e');
+    const wallMat = new THREE.MeshStandardMaterial({color: wallColor, roughness: 0.8});
     const halfSize = roomSize / 2;
 
     const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), wallMat);
@@ -1347,7 +1469,7 @@ function initFriend3DRoom() {
     if (targetData && itemsToRender) {
       itemsToRender.forEach(id => {
         let pDef = products.find(p => p.id === id);
-        if (!pDef) return;
+        if (!pDef || pDef.isWallpaper || pDef.isFlooring) return;
         
         if(!targetData.positions) targetData.positions = {};
         if(!targetData.positions[id]) {
@@ -1465,7 +1587,7 @@ function render() {
   if(roomInvEl) {
     roomInvEl.innerHTML = owned.map(id => {
       let p = products.find(x => x.id === id);
-      if(!p) return '';
+      if(!p || p.isWallpaper || p.isFlooring) return '';
       let isPlaced = (userData.placed || []).includes(id);
       return `
         <div class="shopitem">
@@ -1480,12 +1602,15 @@ function render() {
     }).join('') || '<div class="sub">No items owned yet.</div>';
   }
 
-  document.getElementById('shopgrid').innerHTML = products.map(p => `
-    <div class="shopitem">
-      <b>${p.name}</b><small>${p.price} 🪙</small>
-      ${userData.owned.includes(p.id) ? '<button class="btn secondary" disabled>OWNED ✓</button>' : `<button class="btn" onclick="buy('${p.id}')">BUY</button>`}
-    </div>
-  `).join('');
+  document.getElementById('shopgrid').innerHTML = products.map(p => {
+    let isOwnedWallpaperOrFlooring = (p.isWallpaper && userData.wallpaper === p.colorValue) || (p.isFlooring && userData.flooring === p.colorValue);
+    return `
+      <div class="shopitem">
+        <b>${p.name}</b><small>${p.price} 🪙</small>
+        ${isOwnedWallpaperOrFlooring ? '<button class="btn secondary" disabled>ACTIVE ✓</button>' : `<button class="btn" onclick="buy('${p.id}')">${p.isWallpaper || p.isFlooring ? 'APPLY / BUY' : 'BUY'}</button>`}
+      </div>
+    `;
+  }).join('');
   renderPhotoDatabase();
   renderFriendsList();
   renderStepsStats();
