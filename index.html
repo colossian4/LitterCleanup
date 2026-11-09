@@ -466,7 +466,14 @@ function change(t, d) {
 
 document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x === b));
-  document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === b.dataset.view));
+  let targetView = b.dataset.view;
+  document.querySelectorAll('.view').forEach(x => {
+    let isActive = (x.id === targetView);
+    x.classList.toggle('active', isActive);
+  });
+  if(targetView === 'room') {
+    init3DRoom();
+  }
 }));
 
 document.getElementById('submit').addEventListener('click', () => {
@@ -526,7 +533,10 @@ function removeFriend(uid) {
 function messageFriend(name) {
   document.getElementById('dmRecipient').value = name;
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'social'));
-  document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'social'));
+  document.querySelectorAll('.view').forEach(x => {
+    let isActive = (x.id === 'social');
+    x.classList.toggle('active', isActive);
+  });
   toast('Ready to message ' + name);
 }
 
@@ -536,7 +546,10 @@ async function visitFriendRoom(uid, name) {
     visitingFriendUid = uid;
     visitingFriendData = doc.data().data;
     document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'room'));
-    document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'room'));
+    document.querySelectorAll('.view').forEach(x => {
+      let isActive = (x.id === 'room');
+      x.classList.toggle('active', isActive);
+    });
     init3DRoom();
     toast("Viewing " + name + "'s Room!");
   } else {
@@ -737,6 +750,9 @@ function init3DRoom() {
     const container = document.getElementById('roomCanvasContainer');
     if (!container) return;
 
+    let width = container.clientWidth || 600;
+    let height = container.clientHeight || 480;
+
     let isVisiting = !!visitingFriendUid;
     let targetData = isVisiting ? visitingFriendData : userData;
 
@@ -754,12 +770,12 @@ function init3DRoom() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x13221a);
 
-    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.set(9, 7, 9);
     camera.lookAt(0, 1, 0);
 
     const renderer = new THREE.WebGLRenderer({antialias: true});
-    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setSize(width, height);
     container.appendChild(renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.7));
@@ -910,7 +926,7 @@ function init3DRoom() {
 
     roomInstance = {scene, renderer, camera};
     (function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); })();
-  }, 50);
+  }, 100);
 }
 
 async function postFeed() {
@@ -1014,7 +1030,6 @@ function render() {
   `).join('');
   renderPhotoDatabase();
   renderFriendsList();
-  if (roomInstance && !visitingFriendUid) init3DRoom();
 }
 
 async function saveProfile() {
@@ -1026,6 +1041,11 @@ async function saveProfile() {
   fetchAllMembers();
   toast('Profile saved to Firebase!');
 }
+
+// Auto-initialize room on page load if default active tab is My Room
+window.addEventListener('DOMContentLoaded', () => {
+  init3DRoom();
+});
 </script>
 </body>
 </html>
