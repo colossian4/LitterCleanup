@@ -1460,7 +1460,6 @@ function init3DRoom() {
 
     const halfSize = roomSize / 2;
 
-    // Build all 4 walls with outward-facing normals so angle tests hide foreground walls
     const createWall = (name, x, y, z, rotY, colorHex) => {
       const mat = new THREE.MeshStandardMaterial({color: parseInt(colorHex), roughness: 0.8, side: THREE.DoubleSide});
       const wall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), mat);
@@ -1501,30 +1500,26 @@ function init3DRoom() {
       });
     }
 
-    // Dynamic camera angle occlusion calculation
+    // Corrected occlusion check: Hide foreground walls (dot > 0.15) and keep background walls visible
     function updateWallVisibility() {
-      // Vector pointing from target (center of room) to camera
       const camDir = new THREE.Vector3().subVectors(camera.position, new THREE.Vector3(0, 0.8, 0));
-      camDir.y = 0; // Evaluate orientation along ground horizontal plane
+      camDir.y = 0;
       camDir.normalize();
 
       walls.forEach((w) => {
-        // Wall normal facing inside the room
         let wallNormal = new THREE.Vector3(0, 0, 1);
         if (w.userData.wallName === 'back')  wallNormal.set(0, 0, 1);
         if (w.userData.wallName === 'left')  wallNormal.set(1, 0, 0);
         if (w.userData.wallName === 'right') wallNormal.set(-1, 0, 0);
         if (w.userData.wallName === 'front') wallNormal.set(0, 0, -1);
 
-        // Dot product > 0 means camera is facing the FRONT side of the wall plane (foreground wall blocking view)
         let dot = camDir.dot(wallNormal);
-        let isVisible = dot <= 0.15; // Hide wall as camera rotates behind it
+        let isVisible = dot > 0.15; // Only show walls facing away from/perpendicular to camera (background walls)
 
         w.visible = isVisible;
         w.raycast = isVisible ? THREE.Mesh.prototype.raycast : () => {};
       });
 
-      // Hide/Show items mounted on hidden walls
       furnitureMeshes.forEach(fm => {
         if (fm.userData.isWallItem) {
           let parentWall = wallMap[fm.userData.wall || 'back'];
@@ -1824,7 +1819,7 @@ function initFriend3DRoom() {
         if (w.userData.wallName === 'front') wallNormal.set(0, 0, -1);
 
         let dot = camDir.dot(wallNormal);
-        let isVisible = dot <= 0.15;
+        let isVisible = dot > 0.15;
         w.visible = isVisible;
         w.raycast = isVisible ? THREE.Mesh.prototype.raycast : () => {};
       });
