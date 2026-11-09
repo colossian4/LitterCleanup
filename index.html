@@ -290,9 +290,14 @@ const db = firebase.firestore();
 let currentUser = null;
 let currentUserEmail = '';
 let userData = {
-  coins: 0, cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0,
+  coins: 500, 
+  cans: 0, 
+  plastic: 0, 
+  glass: 0, 
+  goodDeed: 0, 
+  houseChore: 0,
   roomLevel: 0,
-  owned: ['bed','teddy','plant','lamp','painting','cat','window','door'],
+  owned: ['bed','teddy','plant','lamp','painting','cat','window','door','sofa','desk','guitar','arcade','tv','bookcase','gaming_pc','snake_plant'],
   positions: {
     bed:{x:-1.0,y:0,z:-1.0,rot:0},
     teddy:{x:-1.0,y:0.4,z:-0.8,rot:0},
@@ -301,7 +306,15 @@ let userData = {
     lamp:{x:1.0,y:0,z:-1.0,rot:0},
     painting:{x:-1.0,y:2.5,z:-1.92,rot:0,wall:'back'},
     window:{x:1.0,y:2.5,z:-1.92,rot:0,wall:'back'},
-    door:{x:-1.92,y:1.5,z:1.0,rot:Math.PI/2,wall:'left'}
+    door:{x:-1.92,y:1.5,z:1.0,rot:Math.PI/2,wall:'left'},
+    sofa:{x:0,y:0,z:1.0,rot:0},
+    desk:{x:1.0,y:0,z:0,rot:0},
+    guitar:{x:-1.92,y:1.5,z:-0.5,rot:Math.PI/2,wall:'left'},
+    arcade:{x:-1.0,y:0,z:1.0,rot:0},
+    tv:{x:0,y:0,z:-1.92,rot:0,wall:'back'},
+    bookcase:{x:-1.92,y:0,z:0,rot:Math.PI/2,wall:'left'},
+    gaming_pc:{x:1.0,y:0.8,z:0,rot:0},
+    snake_plant:{x:-1.0,y:0,z:0,rot:0}
   },
   name: '',
   uid: '',
@@ -311,6 +324,7 @@ let userData = {
   friends: [],
   photos: []
 };
+
 let allClubMembers = [];
 let activeSelectedFurniture = null;
 let counts = {cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0};
@@ -1040,10 +1054,15 @@ function init3DRoom() {
       targetData.owned.forEach(id => {
         let pDef = products.find(p => p.id === id);
         if (!pDef) return;
-        let pos = targetData.positions && targetData.positions[id] ? targetData.positions[id] : (pDef.isWallItem ? {x:0, y:2.5, z:-halfSize+0.08, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0});
+        
+        if(!targetData.positions) targetData.positions = {};
+        if(!targetData.positions[id]) {
+          targetData.positions[id] = pDef.isWallItem ? {x:0, y:2.5, z:-halfSize+0.08, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
+        }
+        let pos = targetData.positions[id];
 
         const group = createItemModel(id, 0xffa500, targetData);
-        group.position.set(pos.x, pos.y || 0, pos.z);
+        group.position.set(pos.x !== undefined ? pos.x : 0, pos.y || 0, pos.z !== undefined ? pos.z : 0);
         group.rotation.y = pos.rot || 0;
         group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight };
         scene.add(group);
