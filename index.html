@@ -636,7 +636,8 @@ function buy(id) {
   if (userData.coins < p.price) return toast('Need more points!');
   userData.coins -= p.price;
   userData.owned.push(id);
-  let limit = (4 + (userData.roomLevel || 0)) / 2 - 0.5;
+  let roomSize = 4 + (userData.roomLevel || 0);
+  let limit = roomSize / 2 - 0.5;
   userData.positions[id] = p.isWallItem ? {x:0, y:2.5, z:-limit, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
   commitCloud();
   render();
@@ -949,7 +950,7 @@ function init3DRoom() {
     let targetData = isVisiting ? visitingFriendData : userData;
     if(!targetData) targetData = userData;
     let rLevel = targetData.roomLevel || 0;
-    let roomSize = 4 + rLevel;
+    let roomSize = 4 + rLevel; // 4x4 up to 8x8
 
     document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room (" + roomSize + "x" + roomSize + ")";
     document.getElementById('returnRoomBtn').style.display = isVisiting ? "inline-block" : "none";
