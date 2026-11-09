@@ -424,7 +424,6 @@ async function handleAuth() {
       userData.uid = res.user.uid;
       userData.email = email;
       userData.photos = [];
-      // Prompt for username on new registration
       document.getElementById('authOverlay').style.display = 'none';
       document.getElementById('usernameOverlay').style.display = 'flex';
     } catch (regErr) {
@@ -479,7 +478,6 @@ function setupCloudListeners() {
         userData.photos = d.data.photos || userData.photos;
       }
       if(!userData.name) {
-        // If profile exists in auth but has no name set, prompt for username
         document.getElementById('usernameOverlay').style.display = 'flex';
       } else {
         document.getElementById('usernameOverlay').style.display = 'none';
@@ -491,7 +489,6 @@ function setupCloudListeners() {
         headerSpotifyLoaded = true;
       }
     } else {
-      // Profile doc doesn't exist yet, prompt for username
       document.getElementById('usernameOverlay').style.display = 'flex';
     }
     fetchAllMembers();
@@ -639,7 +636,7 @@ function buy(id) {
   if (userData.coins < p.price) return toast('Need more points!');
   userData.coins -= p.price;
   userData.owned.push(id);
-  let limit = 2 + (userData.roomLevel || 0);
+  let limit = (4 + (userData.roomLevel || 0)) / 2 - 0.5;
   userData.positions[id] = p.isWallItem ? {x:0, y:2.5, z:-limit, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
   commitCloud();
   render();
