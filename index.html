@@ -72,7 +72,15 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 .status-pending{background:#3a3218;color:#f0ad4e;border:1px solid #756025}
 .status-cleaned{background:#183822;color:#5cb85c;border:1px solid #2d663d}
 
+.member-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:12px}
+.member-card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.member-card b{font-size:15px;color:var(--lime)}
+.member-card small{color:var(--muted);font:11px 'DM Mono'}
+.member-card .actions{display:flex;gap:6px;flex-wrap:wrap;margin-top: auto;}
+
 .friend-item{display:flex;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);padding:10px 14px;border-radius:10px;margin-bottom:8px}
+
+.spotify-container{margin-top:12px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--bg)}
 
 #authOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(11,19,16,0.96);display:flex;align-items:center;justify-content:center;z-index:1000}
 .auth-box{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px;width:100%;max-width:380px;text-align:center;box-shadow:0 12px 0 var(--shadow)}
@@ -121,7 +129,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <button class="nav" data-view="room" onclick="init3DRoom()"><span>🏡</span>My Room</button>
   <button class="nav" data-view="shop"><span>🛍️</span>Shop</button>
   <button class="nav" data-view="social"><span>💬</span>Social & DMs</button>
-  <button class="nav" data-view="friends" onclick="loadDirectory()"><span>👥</span>Friends</button>
+  <button class="nav" data-view="friends" onclick="loadDirectory()"><span>👥</span>Members & Friends</button>
   <button class="nav" data-view="profile"><span>👤</span>Profile</button>
 </aside>
 
@@ -171,6 +179,8 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
         <button class="btn secondary rotate-btn-overlay" id="rotateRoomBtn" onclick="rotateCurrentFurniture()">🔄 Rotate (R)</button>
         <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Click Rotate or press R to spin</div>
       </div>
+      <!-- Friend Spotify Spotlight inside Room View -->
+      <div id="friendSpotifyContainer" class="spotify-container" style="display:none"></div>
     </div>
   </section>
 
@@ -199,12 +209,12 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
   <section class="view" id="friends">
     <div class="hero">
-      <div><div class="eyebrow">CLUB DIRECTORY</div><h2>Find & Add Friends</h2><p>Search members by display name, send DMs, or visit their 3D room!</p></div>
+      <div><div class="eyebrow">CLUB DIRECTORY</div><h2>Explore Members & Friends</h2><p>View all club members, add friends, DM them, or visit their custom 3D rooms!</p></div>
     </div>
     <div class="panel">
-      <h3>🔍 Search Club Members</h3>
-      <input class="field" id="friendSearchInput" placeholder="Search by display name..." oninput="filterDirectory()">
-      <div id="directoryContainer" style="margin-top:12px"></div>
+      <h3>🔍 Explore All Members</h3>
+      <input class="field" id="friendSearchInput" placeholder="Search members by display name..." oninput="filterDirectory()">
+      <div class="member-grid" id="directoryContainer"></div>
     </div>
     <div class="panel">
       <h3>👥 My Friends List</h3>
@@ -229,8 +239,13 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
         <option value="0x8b4513">Brown & Tan 🤎</option>
       </select>
 
+      <label class="sub" style="margin-top:14px">🎵 Spotify Spotlight (Track, Album, or Playlist Link)</label>
+      <input class="field" id="spotifyInput" placeholder="https://open.spotify.com/track/..." oninput="previewSpotifyInput()">
+
       <button class="btn" onclick="saveProfile()">SAVE PROFILE</button>
       <button class="btn secondary" onclick="firebase.auth().signOut()" style="margin-top:12px">SIGN OUT</button>
+
+      <div id="profileSpotifyPreview" class="spotify-container" style="margin-top:18px"></div>
     </div>
   </section>
 </main>
@@ -271,6 +286,7 @@ let userData = {
   uid: '',
   catName: 'Whiskers',
   catColor: '0xffa500',
+  spotifyUrl: '',
   friends: [],
   photos: []
 };
@@ -435,7 +451,7 @@ async function fetchAllMembers() {
       let d = doc.data();
       if(d.uid && d.uid !== currentUser.uid) {
         let name = (d.displayName || (d.data && d.data.name)) || ("Member #" + d.uid.substring(0,4));
-        allClubMembers.push({ uid: d.uid, name: name, data: d.data });
+        allClubMembers.push({ uid: d.uid, name: name, data: d.data || {} });
       }
     });
     renderFriendsList();
@@ -454,6 +470,37 @@ function toast(s) {
   t.textContent = s;
   t.style.display = 'block';
   setTimeout(() => t.style.display = 'none', 2500);
+}
+
+function getSpotifyEmbedUrl(inputUrl) {
+  if (!inputUrl) return '';
+  try {
+    let url = inputUrl.trim();
+    if(url.includes('spotify.com/embed/')) return url;
+    let match = url.match(/spotify\.com\/(track|album|playlist|episode)\/([a-zA-Z0-9]+)/);
+    if (match) {
+      return `https://open.spotify.com/embed/${match[1]}/${match[2]}`;
+    }
+  } catch(e){}
+  return '';
+}
+
+function renderSpotifyEmbed(containerId, url) {
+  let container = document.getElementById(containerId);
+  if (!container) return;
+  let embedUrl = getSpotifyEmbedUrl(url);
+  if (embedUrl) {
+    container.innerHTML = `<iframe src="${embedUrl}" width="100%" height="152" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
+    container.style.display = 'block';
+  } else {
+    container.innerHTML = '';
+    container.style.display = 'none';
+  }
+}
+
+function previewSpotifyInput() {
+  let val = document.getElementById('spotifyInput').value;
+  renderSpotifyEmbed('profileSpotifyPreview', val);
 }
 
 function calcReward() { return counts.cans*5 + counts.plastic*10 + counts.glass*15; }
@@ -551,6 +598,7 @@ async function visitFriendRoom(uid, name) {
       x.classList.toggle('active', isActive);
     });
     init3DRoom();
+    renderSpotifyEmbed('friendSpotifyContainer', visitingFriendData.spotifyUrl || '');
     toast("Viewing " + name + "'s Room!");
   } else {
     toast('Could not load friend room!');
@@ -560,6 +608,7 @@ async function visitFriendRoom(uid, name) {
 function viewMyOwnRoom() {
   visitingFriendUid = null;
   visitingFriendData = null;
+  renderSpotifyEmbed('friendSpotifyContainer', '');
   init3DRoom();
   toast('Returned to your room!');
 }
@@ -573,13 +622,27 @@ function filterDirectory() {
   let q = document.getElementById('friendSearchInput').value.trim().toLowerCase();
   let container = document.getElementById('directoryContainer');
   let filtered = allClubMembers.filter(m => m.name.toLowerCase().includes(q));
-  
-  container.innerHTML = filtered.map(m => `
-    <div class="friend-item">
-      <div><b>${m.name}</b></div>
-      ${(userData.friends || []).includes(m.uid) ? '<span style="font:11px \'DM Mono\';color:var(--lime)">FRIEND ✓</span>' : `<button class="btn" style="padding:6px 12px;font-size:12px" onclick="addFriend('${m.uid}')">ADD FRIEND ➕</button>`}
-    </div>
-  `).join('') || '<div class="sub">No matching club members found.</div>';
+
+  container.innerHTML = filtered.map(m => {
+    let isFriend = (userData.friends || []).includes(m.uid);
+    let catName = (m.data && m.data.catName) ? m.data.catName : 'Whiskers';
+    return `
+      <div class="member-card">
+        <div>
+          <b>${m.name}</b>
+          <small style="display:block">🐱 Cat: ${catName}</small>
+        </div>
+        <div class="actions">
+          ${isFriend ? 
+            `<button class="btn danger" style="padding:6px 10px;font-size:11px" onclick="removeFriend('${m.uid}')">REMOVE</button>` : 
+            `<button class="btn" style="padding:6px 10px;font-size:11px" onclick="addFriend('${m.uid}')">ADD FRIEND ➕</button>`
+          }
+          <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="messageFriend('${m.name}')">💬 DM</button>
+          <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="visitFriendRoom('${m.uid}', '${m.name}')">👀 ROOM</button>
+        </div>
+      </div>
+    `;
+  }).join('') || '<div class="sub">No matching club members found.</div>';
 }
 
 function renderFriendsList() {
@@ -1021,6 +1084,7 @@ function render() {
   document.getElementById('nameInput').value = userData.name || '';
   document.getElementById('catNameInput').value = userData.catName || 'Whiskers';
   document.getElementById('catColorInput').value = userData.catColor || '0xffa500';
+  document.getElementById('spotifyInput').value = userData.spotifyUrl || '';
 
   document.getElementById('shopgrid').innerHTML = products.map(p => `
     <div class="shopitem">
@@ -1030,6 +1094,7 @@ function render() {
   `).join('');
   renderPhotoDatabase();
   renderFriendsList();
+  renderSpotifyEmbed('profileSpotifyPreview', userData.spotifyUrl || '');
 }
 
 async function saveProfile() {
@@ -1037,12 +1102,12 @@ async function saveProfile() {
   userData.name = newName || ("Member #" + currentUser.uid.substring(0,4));
   userData.catName = document.getElementById('catNameInput').value.trim() || 'Whiskers';
   userData.catColor = document.getElementById('catColorInput').value;
+  userData.spotifyUrl = document.getElementById('spotifyInput').value.trim();
   commitCloud();
   fetchAllMembers();
   toast('Profile saved to Firebase!');
 }
 
-// Auto-initialize room on page load if default active tab is My Room
 window.addEventListener('DOMContentLoaded', () => {
   init3DRoom();
 });
