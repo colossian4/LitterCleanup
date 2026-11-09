@@ -86,8 +86,8 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <div class="auth-box">
     <div style="font-size:42px;margin-bottom:8px">🌱</div>
     <h2 style="margin:0 0 6px">Cleanup Club 3D</h2>
-    <p class="sub">Sign in with email & password for live cloud sync.</p>
-    <input class="field" id="authEmail" type="email" placeholder="your.email@example.com" style="margin-top:10px">
+    <p class="sub">Sign in with your account credentials.</p>
+    <input class="field" id="authEmail" type="email" placeholder="Email Address" style="margin-top:10px">
     <input class="field" id="authPassword" type="password" placeholder="Password">
     <button type="button" class="btn full" onclick="handleAuth()">SIGN IN / REGISTER ✨</button>
   </div>
@@ -679,7 +679,7 @@ function renderPhotoDatabase() {
   `).join('') || '<div class="sub">No photos saved yet.</div>';
 }
 
-function createItemModel(id, customCatColor=0xffa500) {
+function createItemModel(id, customCatColor=0xffa500, activeDataObj=null) {
   const group = new THREE.Group();
   function addBox(w, h, d, color, x, y, z, rx=0, ry=0, rz=0) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), new THREE.MeshStandardMaterial({color, roughness:0.2, metalness:0.1}));
@@ -693,8 +693,8 @@ function createItemModel(id, customCatColor=0xffa500) {
     addBox(0.4, 0.2, 0.3, 0xffffff, 0.55, 0.42, -0.5);
   }
   else if(id==='cat'){ 
-    let activeData = visitingFriendData || userData;
-    let cCol = parseInt(activeData.catColor || customCatColor);
+    let dTarget = activeDataObj || visitingFriendData || userData;
+    let cCol = parseInt(dTarget.catColor || customCatColor);
     addBox(0.4, 0.3, 0.35, cCol, 0, 0.15, 0); 
     addBox(0.25, 0.25, 0.25, cCol, 0, 0.38, 0.1); 
     addBox(0.1, 0.1, 0.05, 0xffc0cb, 0, 0.35, 0.23); 
@@ -791,7 +791,7 @@ function init3DRoom() {
         if (!pDef) return;
         let pos = targetData.positions && targetData.positions[id] ? targetData.positions[id] : {x:0, y:0, z:0, rot:0};
 
-        const group = createItemModel(id);
+        const group = createItemModel(id, 0xffa500, targetData);
         group.position.set(pos.x, pos.y || 0, pos.z);
         group.rotation.y = pos.rot || 0;
         group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight };
@@ -1014,7 +1014,7 @@ function render() {
   `).join('');
   renderPhotoDatabase();
   renderFriendsList();
-  if (roomInstance) init3DRoom();
+  if (roomInstance && !visitingFriendUid) init3DRoom();
 }
 
 async function saveProfile() {
