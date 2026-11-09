@@ -133,7 +133,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <div class="header-right">
     <button class="walk-btn" id="walkToggle" onclick="toggleWalkMode()">🌲 ON A WALK</button>
     <button class="audio-btn" id="audioToggle" onclick="toggleAudio()">🎵 8-BIT MUSIC: OFF</button>
-    <div class="wallet">🪙 <b id="coins">0</b> COINS</div>
+    <div class="wallet">🪙 <b id="coins">500</b> COINS</div>
   </div>
 </header>
 
@@ -489,14 +489,24 @@ function setupCloudListeners() {
         renderHeaderSpotify(userData.spotifyUrl);
         headerSpotifyLoaded = true;
       }
-      // Re-initialize room on live sync so items appear instantly when purchased
       if(document.getElementById('room').classList.contains('active')) {
         init3DRoom();
       }
     } else {
-      document.getElementById('usernameOverlay').style.display = 'flex';
+      let localBackup = localStorage.getItem('cleanup_user_' + currentUser.uid);
+      if(localBackup) {
+        try { userData = JSON.parse(localBackup); } catch(e){}
+      }
+      document.getElementById('usernameOverlay').style.display = userData.name ? 'none' : 'flex';
+      render();
     }
     fetchAllMembers();
+  }, err => {
+    let localBackup = localStorage.getItem('cleanup_user_' + currentUser.uid);
+    if(localBackup) {
+      try { userData = JSON.parse(localBackup); } catch(e){}
+    }
+    render();
   });
 
   db.collection('social').doc('global').onSnapshot(doc => {
@@ -534,6 +544,8 @@ async function fetchAllMembers() {
 
 function commitCloud() {
   if (!currentUser) return;
+  localStorage.setItem('cleanup_user_' + currentUser.uid, JSON.stringify(userData));
+  
   db.collection('user_profiles').doc(currentUser.uid).set({
     uid: currentUser.uid,
     email: currentUserEmail,
@@ -550,7 +562,9 @@ function commitCloud() {
     photos: userData.photos
   }, { merge: true }).then(() => {
     fetchAllMembers();
-  }).catch(e => {});
+  }).catch(e => {
+    console.warn("Cloud sync offline fallback active.");
+  });
 }
 
 function toast(s) {
@@ -660,10 +674,9 @@ function buy(id) {
   userData.coins -= p.price;
   userData.owned.push(id);
   
-  let roomSize = 4 + (userData.roomLevel || 0);
+  let roomSize = 4 + Number(userData.roomLevel || 0);
   let limit = roomSize / 2 - 0.5;
   
-  // Guarantee position object exists so it never spawns NaN or undefined
   if(!userData.positions) userData.positions = {};
   userData.positions[id] = p.isWallItem ? {x:0, y:2.5, z:-limit, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
   
@@ -1282,7 +1295,7 @@ async function saveProfile() {
   render();
   renderHeaderSpotify(userData.spotifyUrl);
   fetchAllMembers();
-  toast('Profile saved to Firebase!');
+  toast('Profile saved to Firebase & local storage!');
 }
 
 window.addEventListener('DOMContentLoaded', () => {
