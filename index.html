@@ -141,15 +141,17 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 <main>
   <section class="view active" id="cleanup">
     <div class="hero">
-      <div><div class="eyebrow">YOUR GOOD DEED</div><h2>Clean outside.<br>Build inside.</h2><p>Pick up litter, log finds, and earn coins for your live cloud room.</p></div>
+      <div><div class="eyebrow">YOUR GOOD DEED</div><h2>Clean outside.<br>Build inside.</h2><p>Pick up litter, log finds, perform good deeds, and earn points for your live cloud room.</p></div>
     </div>
     <div class="panel">
-      <h3>🧺 Log your litter</h3>
-      <div class="item-row"><div><b>Aluminum cans</b> <small style="color:var(--muted)">5 coins</small></div><div class="counter"><button onclick="change('cans',-1)">−</button><strong id="cans">0</strong><button onclick="change('cans',1)">+</button></div></div>
-      <div class="item-row"><div><b>Plastic items</b> <small style="color:var(--muted)">10 coins</small></div><div class="counter"><button onclick="change('plastic',-1)">−</button><strong id="plastic">0</strong><button onclick="change('plastic',1)">+</button></div></div>
-      <div class="item-row"><div><b>Glass bottles</b> <small style="color:var(--muted)">15 coins</small></div><div class="counter"><button onclick="change('glass',-1)">−</button><strong id="glass">0</strong><button onclick="change('glass',1)">+</button></div></div>
+      <h3>🧺 Log your litter & deeds</h3>
+      <div class="item-row"><div><b>Aluminum cans</b> <small style="color:var(--muted)">5 points</small></div><div class="counter"><button onclick="change('cans',-1)">−</button><strong id="cans">0</strong><button onclick="change('cans',1)">+</button></div></div>
+      <div class="item-row"><div><b>Plastic items</b> <small style="color:var(--muted)">10 points</small></div><div class="counter"><button onclick="change('plastic',-1)">−</button><strong id="plastic">0</strong><button onclick="change('plastic',1)">+</button></div></div>
+      <div class="item-row"><div><b>Glass bottles</b> <small style="color:var(--muted)">15 points</small></div><div class="counter"><button onclick="change('glass',-1)">−</button><strong id="glass">0</strong><button onclick="change('glass',1)">+</button></div></div>
+      <div class="item-row"><div><b>Good Deed</b> <small style="color:var(--muted)">15 points</small></div><div class="counter"><button onclick="change('goodDeed',-1)">−</button><strong id="goodDeed">0</strong><button onclick="change('goodDeed',1)">+</button></div></div>
+      <div class="item-row"><div><b>House-Chore</b> <small style="color:var(--muted)">20 points</small></div><div class="counter"><button onclick="change('houseChore',-1)">−</button><strong id="houseChore">0</strong><button onclick="change('houseChore',1)">+</button></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0"><span>Reward:</span><strong id="reward" style="color:var(--lime);font:18px 'DM Mono'">0 🪙</strong></div>
-      <button class="btn full" id="submit">LOG CLEANUP & EARN ✨</button>
+      <button class="btn full" id="submit">LOG & EARN POINTS ✨</button>
     </div>
   </section>
 
@@ -213,7 +215,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
   <section class="view" id="friends">
     <div class="hero">
-      <div><div class="eyebrow">CLUB DIRECTORY</div><h2>Explore Members & Friends</h2><p>View all club members, add friends, DM them, or visit their custom 3D rooms!</p></div>
+      <div><div class="eyebrow">CLUB DIRECTORY</div><h2>Explore Members & Friends</h2><p>View all club members including yourself, add friends, DM them, or visit their custom 3D rooms!</p></div>
     </div>
     <div class="panel">
       <h3>🔍 Explore All Members</h3>
@@ -275,7 +277,7 @@ const db = firebase.firestore();
 let currentUser = null;
 let currentUserEmail = '';
 let userData = {
-  coins: 100, cans:0, plastic:0, glass:0,
+  coins: 100, cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0,
   owned: ['bed','teddy','plant','lamp','painting','cat','window','door'],
   positions: {
     bed:{x:-1.8,y:0,z:-1.8,rot:0},
@@ -297,7 +299,7 @@ let userData = {
 };
 let allClubMembers = [];
 let activeSelectedFurniture = null;
-let counts = {cans:0, plastic:0, glass:0};
+let counts = {cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0};
 let roomInstance = null;
 let isWalkModeActive = false;
 let headerSpotifyLoaded = false;
@@ -542,7 +544,7 @@ function renderHeaderSpotify(url) {
   }
 }
 
-function calcReward() { return counts.cans*5 + counts.plastic*10 + counts.glass*15; }
+function calcReward() { return counts.cans*5 + counts.plastic*10 + counts.glass*15 + counts.goodDeed*15 + counts.houseChore*20; }
 function change(t, d) {
   playSoundFX(500, 'triangle', 0.05);
   counts[t] = Math.max(0, counts[t]+d);
@@ -569,12 +571,12 @@ document.getElementById('submit').addEventListener('click', () => {
   let reward = calcReward();
   if (!reward) return toast('Add items first!');
   userData.coins += reward;
-  counts = {cans:0, plastic:0, glass:0};
-  ['cans','plastic','glass'].forEach(k => document.getElementById(k).textContent='0');
+  counts = {cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0};
+  ['cans','plastic','glass','goodDeed','houseChore'].forEach(k => document.getElementById(k).textContent='0');
   document.getElementById('reward').textContent='0 🪙';
   commitCloud();
   render();
-  toast('Cleanup logged! +'+reward+' coins 🌱');
+  toast('Cleanup logged! +'+reward+' points 🌱');
 });
 
 const products = [
@@ -599,7 +601,7 @@ const products = [
 function buy(id) {
   let p = products.find(x => x.id === id);
   if (!p || userData.owned.includes(id)) return;
-  if (userData.coins < p.price) return toast('Need more coins!');
+  if (userData.coins < p.price) return toast('Need more points!');
   userData.coins -= p.price;
   userData.owned.push(id);
   userData.positions[id] = p.isWallItem ? {x:0, y:3, z:-3.92, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
@@ -620,7 +622,7 @@ function addFriend(uid) {
 
 function removeFriend(uid) {
   let targetMember = allClubMembers.find(m => m.uid === uid);
-  if(targetMember && targetMember.email === 'justforjosh2000@gmail.com' && currentUserEmail !== 'justforjosh2000@gmail.com') {
+  if(targetMember && targetMember.email === 'justforjosh2000@gmail.com') {
     return toast('Cannot remove Josh (automatic club friend)!');
   }
   if(!userData.friends) return;
