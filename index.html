@@ -19,8 +19,6 @@
 body.walk-mode{--bg:#0d1926;--panel:#162438;--panel2:#1f334d;--line:#2c4669;--mint:#82c4d9;--lime:#67e8f0;--cream:#e3f2f5;--muted:#84a6bc;--shadow:#04090f}
 body.walk-mode{background:radial-gradient(circle at 50% -20%,#1e3b54 0,transparent 55%),var(--bg)!important}
 
-body::after{content:"";position:fixed;top:0;left:0;width:100vw;height:100vh;background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,0.25) 50%),linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03));z-index:9999;background-size:100% 3px,6px 100%;pointer-events:none}
-
 button,input,textarea,select{font:inherit}button{cursor:pointer}.app{max-width:1200px;margin:auto;padding:20px;position:relative;z-index:2}
 header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;background:var(--panel);padding:14px 20px;border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 0 var(--shadow);flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:14px}
@@ -41,7 +39,7 @@ main{min-width:0}.view{display:none}.view.active{display:block}
 body.walk-mode .hero{background:linear-gradient(135deg,#1c3957,#102236);border-color:#315b82}
 .eyebrow{font:11px 'DM Mono';color:var(--lime);text-transform:uppercase;letter-spacing:1px}.hero h2{font-size:26px;margin:6px 0}.hero p{color:#c5d4c2;margin:0;font-size:14px}
 body.walk-mode .hero p{color:#c2dbe4}
-.grid2{display:grid;grid-template-columns:1fr;gap:18px}.panel{padding:20px;margin-bottom:18px}.panel h3{margin:0 0 6px;font-size:17px}.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.panel{padding:20px;margin-bottom:18px}.panel h3{margin:0 0 6px;font-size:17px}.sub{color:var(--muted);font-size:13px;margin:0 0 16px}
 .item-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px dashed var(--line)}.item-row:last-child{border:0}
 .counter{display:flex;align-items:center;gap:10px}.counter button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--cream);font-weight:900}
 .btn{border:0;background:var(--lime);color:#121c16;padding:12px 18px;border-radius:10px;font-weight:900;box-shadow:0 4px 0 #739430;transition:.1s ease}.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #739430}
@@ -64,7 +62,6 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 .trash-drop-zone{position:absolute;bottom:16px;right:16px;background:rgba(217,83,79,0.9);color:#fff;border:2px dashed #fff;padding:10px 16px;border-radius:12px;font:12px 'DM Mono';font-weight:800;display:none;z-index:6;box-shadow:0 4px 0 rgba(0,0,0,0.3);pointer-events:none;transition:.2s}
 .trash-drop-zone.highlight{background:rgba(255,50,50,1);transform:scale(1.08)}
 
-/* Virtual Analog Joystick UI */
 .joystick-container{position:absolute;bottom:14px;right:14px;width:100px;height:100px;background:rgba(20,32,26,0.75);border:2px solid var(--line);border-radius:50%;z-index:6;touch-action:none;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 0 var(--shadow)}
 .joystick-knob{width:44px;height:44px;background:var(--lime);border-radius:50%;position:absolute;box-shadow:0 3px 0 #739430;pointer-events:none;transition:transform 0.05s linear}
 
@@ -97,7 +94,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 #authOverlay,#usernameOverlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(11,19,16,0.96);display:flex;align-items:center;justify-content:center;z-index:1000}
 .auth-box{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px;width:100%;max-width:380px;text-align:center;box-shadow:0 12px 0 var(--shadow)}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--lime);color:#121c16;padding:12px 20px;border-radius:10px;font-weight:900;display:none;z-index:2000;box-shadow:0 6px 0 rgba(0,0,0,0.3)}
-@media(max-width:768px){.layout{grid-template-columns:1fr}.sidebar{position:static;display:flex;overflow-x:auto;padding:8px}.nav{padding:8px 12px;font-size:12px}.shopgrid{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media(max-width:768px){.layout{grid-template-columns:1fr}.sidebar{position:static;display:flex;overflow-x:auto;padding:8px}.nav{padding:8px 12px;font-size:12px}.shopgrid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -188,7 +185,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
   <section class="view" id="steps">
     <div class="hero">
-      <div><div class="eyebrow">DAILY ACTIVITY TRACKER</div><h2>Step & Distance Logger</h2><p>Set your total step count or add to it ($1\text{ step} \approx 0.762\text{m}$).</p></div>
+      <div><div class="eyebrow">DAILY ACTIVITY TRACKER</div><h2>Step & Distance Logger</h2><p>Set your total step count or add to it.</p></div>
     </div>
     <div class="panel">
       <h3>👟 Step Logger</h3>
@@ -267,7 +264,6 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
         </div>
         <div class="room-instructions">📱 Drag to Orbit · Click to move · <b>Joystick / WASD</b> walks Cat 🐈 over furniture</div>
         
-        <!-- Virtual Analog Joystick -->
         <div class="joystick-container" id="joystickBase">
           <div class="joystick-knob" id="joystickKnob"></div>
         </div>
@@ -293,7 +289,6 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
       <div id="parkCanvasContainer">
         <div class="room-instructions">🌳 Walk Cat 🐈 over litter pieces to pick them up (+1 coin each)!</div>
         
-        <!-- Virtual Analog Joystick for Park -->
         <div class="joystick-container" id="parkJoystickBase">
           <div class="joystick-knob" id="parkJoystickKnob"></div>
         </div>
@@ -492,7 +487,6 @@ let parkTrashItems = [];
 let parkCatMesh = null;
 let parkAnimationId = null;
 
-// Joystick & Key Movement State for Cat Companion
 const movementKeys = { up: false, down: false, left: false, right: false };
 let joystickVector = { x: 0, y: 0 };
 let catMeshReference = null;
@@ -572,9 +566,8 @@ function toggleWalkMode() {
     btn.textContent = '🏡 BACK INDOORS';
     navBtn.innerHTML = '<span>🌳</span>Park';
     navBtn.dataset.view = 'park';
-    toast('Nature walk mode enabled! 🌲🍃 Visit the Park tab to collect litter!');
+    toast('Nature walk mode enabled! Visit the Park tab to collect litter!');
     
-    // Switch active view to park if currently in room
     if(document.getElementById('room').classList.contains('active')) {
       document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x === navBtn));
       document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'park'));
@@ -1547,7 +1540,6 @@ function rotateCurrentFurniture() {
   }
 }
 
-// Global Keyboard Listeners for Cat Companion Movement & Rotate
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (["arrowup", "w"].includes(k)) movementKeys.up = true;
@@ -1597,7 +1589,6 @@ function init3DRoom() {
       </div>
       <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit · Click to move · <b>Joystick / WASD</b> walks Cat 🐈 over furniture</div>
       
-      <!-- Virtual Analog Joystick -->
       <div class="joystick-container" id="joystickBase">
         <div class="joystick-knob" id="joystickKnob"></div>
       </div>
@@ -2028,7 +2019,6 @@ function init3DRoom() {
   }, 100);
 }
 
-// RANDOM PARK GENERATOR & LITTER COLLECTION LOGIC
 function generateNewPark() {
   parkTrashItems = [];
   for(let i=0; i<5; i++) {
@@ -2036,7 +2026,7 @@ function generateNewPark() {
       x: (Math.random() * 5.0) - 2.5,
       z: (Math.random() * 5.0) - 2.5,
       collected: false,
-      type: i % 3 // 0: can, 1: bottle, 2: plastic cup
+      type: i % 3
     });
   }
   let countEl = document.getElementById('litterCountDisplay');
@@ -2063,7 +2053,6 @@ function initPark() {
         <button class="btn secondary" onclick="resetParkView()" style="padding:4px 8px;font-size:11px">🏠 Reset View</button>
       </div>
       
-      <!-- Virtual Analog Joystick for Park -->
       <div class="joystick-container" id="parkJoystickBase">
         <div class="joystick-knob" id="parkJoystickKnob"></div>
       </div>
@@ -2148,7 +2137,6 @@ function initPark() {
     sunLight.position.set(8, 16, 8);
     scene.add(sunLight);
 
-    // Grass Park Ground
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(parkSize, parkSize),
       new THREE.MeshStandardMaterial({color: 0x2e6b3e, roughness: 0.8})
@@ -2156,11 +2144,10 @@ function initPark() {
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
 
-    // Random Trees & Benches in Park
     for(let i=0; i<6; i++) {
       let tx = (Math.random() * 6.0) - 3.0;
       let tz = (Math.random() * 6.0) - 3.0;
-      if(Math.abs(tx) < 1.5 && Math.abs(tz) < 1.5) continue; // Keep center clear
+      if(Math.abs(tx) < 1.5 && Math.abs(tz) < 1.5) continue;
 
       const treeGroup = new THREE.Group();
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 1.2), new THREE.MeshStandardMaterial({color: 0x5c4033}));
@@ -2173,25 +2160,20 @@ function initPark() {
       scene.add(treeGroup);
     }
 
-    // Render Park Cat Companion
     parkCatMesh = createItemModel('cat', parseInt(userData.catColor || '0xffa500'), userData);
     parkCatMesh.position.set(0, 0, 0);
     scene.add(parkCatMesh);
 
-    // Render 5 pieces of trash
     const trashMeshGroup = [];
     parkTrashItems.forEach((t, idx) => {
       if(t.collected) return;
       const tGroup = new THREE.Group();
       let tMesh;
       if(t.type === 0) {
-        // Can
         tMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.3), new THREE.MeshStandardMaterial({color: 0xd2f567, metalness: 0.8}));
       } else if(t.type === 1) {
-        // Bottle
         tMesh = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.35, 8), new THREE.MeshStandardMaterial({color: 0x67e8f0, transparent: true, opacity: 0.8}));
       } else {
-        // Plastic wrapper / cup
         tMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.2), new THREE.MeshStandardMaterial({color: 0xffffff}));
       }
       tMesh.position.y = 0.15;
@@ -2241,7 +2223,6 @@ function initPark() {
         parkCatMesh.position.y = Math.abs(Math.sin(parkWalkCycle)) * 0.06;
         parkCatMesh.rotation.y = Math.atan2(moveDir.x, moveDir.z);
 
-        // Check if cat touches any trash
         parkTrashItems.forEach((t, idx) => {
           if(!t.collected) {
             let dist = Math.hypot(parkCatMesh.position.x - t.x, parkCatMesh.position.z - t.z);
@@ -2256,7 +2237,6 @@ function initPark() {
               let countEl = document.getElementById('litterCountDisplay');
               if(countEl) countEl.textContent = remaining + " / 5";
 
-              // Re-render park to remove collected item
               initPark();
             }
           }
