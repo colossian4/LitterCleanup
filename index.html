@@ -1460,12 +1460,23 @@ function init3DRoom() {
 
     const halfSize = roomSize / 2;
 
-    // ONLY create and render the Back Wall. Left, Right, and Front walls are turned off entirely (removed from scene).
+    // Active Back and Left Walls for placing/hanging items
     const backMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.back || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
+    const leftMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.left || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
+
     const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), backMat);
     backWall.position.set(0, 3, -halfSize);
     backWall.userData = { wallName: 'back' };
     scene.add(backWall);
+
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), leftMat);
+    leftWall.position.set(-halfSize, 3, 0);
+    leftWall.rotation.y = Math.PI / 2;
+    leftWall.userData = { wallName: 'left' };
+    scene.add(leftWall);
+
+    const walls = [backWall, leftWall];
+    const wallMap = { back: backWall, left: leftWall };
 
     const furnitureMeshes = [];
     let itemsToRender = userData.placed || userData.owned;
@@ -1488,6 +1499,35 @@ function init3DRoom() {
         furnitureMeshes.push(group);
       });
     }
+
+    function updateWallVisibility() {
+      let wallDistances = walls.map(w => {
+        let center = new THREE.Vector3();
+        w.getWorldPosition(center);
+        return { wall: w, dist: camera.position.distanceTo(center) };
+      });
+      wallDistances.sort((a, b) => a.dist - b.dist);
+
+      // If camera gets too close to a wall, turn it off completely so it doesn't block view
+      walls.forEach((w) => {
+        let center = new THREE.Vector3();
+        w.getWorldPosition(center);
+        let dist = camera.position.distanceTo(center);
+        let show = dist > 2.5; // Turn off wall when camera gets too close
+        w.visible = show;
+        w.raycast = show ? THREE.Mesh.prototype.raycast : () => {};
+      });
+
+      furnitureMeshes.forEach(fm => {
+        if (fm.userData.isWallItem) {
+          let parentWall = wallMap[fm.userData.wall || 'back'];
+          if (parentWall) {
+            fm.visible = parentWall.visible;
+          }
+        }
+      });
+    }
+    updateWallVisibility();
 
     let isDragging = false;
     let isOrbiting = false;
@@ -1572,6 +1612,7 @@ function init3DRoom() {
         currentCameraAngleY -= deltaX * 0.008;
         currentCameraAngleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, currentCameraAngleX + deltaY * 0.008));
         updateCameraPosition();
+        updateWallVisibility();
         return;
       }
 
@@ -1585,13 +1626,29 @@ function init3DRoom() {
 
       if (pDef && pDef.isWallItem) {
         let backIntersect = new THREE.Vector3();
+        let leftIntersect = new THREE.Vector3();
+
         raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1), limit), backIntersect);
-        
-        activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, backIntersect.x)), Math.max(1, Math.min(5, backIntersect.y)), -limit);
-        activeSelectedFurniture.rotation.y = 0;
-        activeSelectedFurniture.userData.wall = 'back';
+        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(1,0,0), limit), leftIntersect);
+
+        let minDist = Math.min(Math.abs(backIntersect.z), Math.abs(leftIntersect.x));
+
+        let chosenWall = 'back';
+        if (minDist === Math.abs(leftIntersect.x)) {
+          activeSelectedFurniture.position.set(-limit, Math.max(1, Math.min(5, leftIntersect.y)), Math.max(-bound, Math.min(bound, leftIntersect.z)));
+          activeSelectedFurniture.rotation.y = Math.PI / 2;
+          chosenWall = 'left';
+        } else {
+          activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, backIntersect.x)), Math.max(1, Math.min(5, backIntersect.y)), -limit);
+          activeSelectedFurniture.rotation.y = 0;
+          chosenWall = 'back';
+        }
+
+        activeSelectedFurniture.userData.wall = chosenWall;
         if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
-        userData.positions[pDef.id].wall = 'back';
+        userData.positions[pDef.id].wall = chosenWall;
+
+        updateWallVisibility();
       } else {
         const target = new THREE.Vector3();
         raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0), 0), target);
@@ -1702,7 +1759,16 @@ function initFriend3DRoom() {
     backWall.userData = { wallName: 'back' };
     scene.add(backWall);
 
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), new THREE.MeshStandardMaterial({color: parseInt(wallColors.left || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide}));
+    leftWall.position.set(-halfSize, 3, 0);
+    leftWall.rotation.y = Math.PI / 2;
+    leftWall.userData = { wallName: 'left' };
+    scene.add(leftWall);
+
+    const walls = [backWall, leftWall];
+    const wallMap = { back: backWall, left: leftWall };
     const friendFurniture = [];
+
     let itemsToRender = targetData.placed || targetData.owned;
     if (targetData && itemsToRender) {
       itemsToRender.forEach(id => {
@@ -1724,6 +1790,27 @@ function initFriend3DRoom() {
       });
     }
 
+    function updateFriendWallVisibility() {
+      walls.forEach((w) => {
+        let center = new THREE.Vector3();
+        w.getWorldPosition(center);
+        let dist = camera.position.distanceTo(center);
+        let show = dist > 2.5;
+        w.visible = show;
+        w.raycast = show ? THREE.Mesh.prototype.raycast : () => {};
+      });
+
+      friendFurniture.forEach(fm => {
+        if (fm.userData.isWallItem) {
+          let parentWall = wallMap[fm.userData.wall || 'back'];
+          if (parentWall) {
+            fm.visible = parentWall.visible;
+          }
+        }
+      });
+    }
+    updateFriendWallVisibility();
+
     let isOrbiting = false;
     let prevMouseX = 0, prevMouseY = 0;
     const dom = renderer.domElement;
@@ -1737,6 +1824,7 @@ function initFriend3DRoom() {
       friendCameraAngleY -= deltaX * 0.008;
       friendCameraAngleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, friendCameraAngleX + deltaY * 0.008));
       updateFriendCamera();
+      updateFriendWallVisibility();
     });
     window.addEventListener('mouseup', () => { isOrbiting = false; });
 
