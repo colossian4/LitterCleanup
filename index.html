@@ -188,13 +188,12 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <section class="view" id="room">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room</h3>
+        <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room (6x6)</h3>
         <button class="btn secondary" id="returnRoomBtn" style="display:none;padding:6px 12px;font-size:12px" onclick="viewMyOwnRoom()">RETURN TO MY ROOM</button>
       </div>
       <div id="roomCanvasContainer">
         <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
         <div class="room-top-controls">
-          <button class="btn secondary" id="expandRoomBtn" style="padding:6px 10px;font-size:11px" onclick="expandRoom()">📐 Expand Room (100 🪙)</button>
           <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
         </div>
         <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Click Rotate or press R to spin</div>
@@ -291,17 +290,24 @@ let currentUser = null;
 let currentUserEmail = '';
 let userData = {
   coins: 500, cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0,
-  roomLevel: 0,
-  owned: ['bed','teddy','plant','lamp','painting','cat','window','door'],
+  owned: ['bed','teddy','plant','lamp','painting','cat','window','door','sofa','desk','guitar','arcade','tv','bookcase','gaming_pc','snake_plant'],
   positions: {
-    bed:{x:-1.0,y:0,z:-1.0,rot:0},
-    teddy:{x:-1.0,y:0.4,z:-0.8,rot:0},
-    cat:{x:-1.0,y:0.4,z:-1.2,rot:0},
-    plant:{x:1.0,y:0,z:1.0,rot:0},
-    lamp:{x:1.0,y:0,z:-1.0,rot:0},
-    painting:{x:-1.0,y:2.5,z:-1.92,rot:0,wall:'back'},
-    window:{x:1.0,y:2.5,z:-1.92,rot:0,wall:'back'},
-    door:{x:-1.92,y:1.5,z:1.0,rot:Math.PI/2,wall:'left'}
+    bed:{x:-1.5,y:0,z:-1.5,rot:0},
+    teddy:{x:-1.5,y:0.4,z:-1.3,rot:0},
+    cat:{x:-1.5,y:0.4,z:-1.7,rot:0},
+    plant:{x:1.5,y:0,z:1.5,rot:0},
+    lamp:{x:1.5,y:0,z:-1.5,rot:0},
+    painting:{x:-1.5,y:2.5,z:-2.92,rot:0,wall:'back'},
+    window:{x:1.5,y:2.5,z:-2.92,rot:0,wall:'back'},
+    door:{x:-2.92,y:1.5,z:1.5,rot:Math.PI/2,wall:'left'},
+    sofa:{x:0,y:0,z:1.5,rot:0},
+    desk:{x:1.5,y:0,z:0,rot:0},
+    guitar:{x:-2.92,y:1.5,z:-1.0,rot:Math.PI/2,wall:'left'},
+    arcade:{x:-1.5,y:0,z:1.5,rot:0},
+    tv:{x:0,y:0,z:-2.92,rot:0,wall:'back'},
+    bookcase:{x:-2.92,y:0,z:0,rot:Math.PI/2,wall:'left'},
+    gaming_pc:{x:1.5,y:0.8,z:0,rot:0},
+    snake_plant:{x:-1.5,y:0,z:0,rot:0}
   },
   name: '',
   uid: '',
@@ -468,7 +474,6 @@ function setupCloudListeners() {
       let sourceObj = d.data || d;
       
       userData.coins = sourceObj.coins !== undefined ? sourceObj.coins : userData.coins;
-      userData.roomLevel = sourceObj.roomLevel !== undefined ? Number(sourceObj.roomLevel) : userData.roomLevel;
       userData.owned = sourceObj.owned || userData.owned;
       userData.positions = sourceObj.positions || userData.positions;
       userData.name = sourceObj.name || userData.name;
@@ -551,7 +556,6 @@ function commitCloud() {
     email: currentUserEmail,
     displayName: userData.name,
     coins: userData.coins,
-    roomLevel: userData.roomLevel,
     owned: userData.owned,
     positions: userData.positions,
     name: userData.name,
@@ -674,9 +678,7 @@ function buy(id) {
   userData.coins -= p.price;
   userData.owned.push(id);
   
-  let roomSize = 4 + Number(userData.roomLevel || 0);
-  let limit = roomSize / 2 - 0.5;
-  
+  let limit = 2.5; // Fixed 6x6 room limit
   if(!userData.positions) userData.positions = {};
   userData.positions[id] = p.isWallItem ? {x:0, y:2.5, z:-limit, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
   
@@ -684,22 +686,6 @@ function buy(id) {
   render();
   init3DRoom();
   toast('Purchased ' + p.name + '!');
-}
-
-function expandRoom() {
-  if (visitingFriendUid) return;
-  let currentLevel = Number(userData.roomLevel || 0);
-  if (currentLevel >= 4) return toast('Room is already at maximum 8x8 size!');
-  if (userData.coins < 100) return toast('Need 100 coins to expand room!');
-  
-  userData.coins -= 100;
-  userData.roomLevel = currentLevel + 1;
-  
-  commitCloud();
-  render();
-  init3DRoom();
-  let newSize = 4 + userData.roomLevel;
-  toast('Room expanded! 🎉 (' + newSize + 'x' + newSize + ')');
 }
 
 function addFriend(uid) {
@@ -995,19 +981,15 @@ function init3DRoom() {
     let isVisiting = !!visitingFriendUid;
     let targetData = isVisiting ? visitingFriendData : userData;
     if(!targetData) targetData = userData;
-    let rLevel = Number(targetData.roomLevel || 0);
-    let roomSize = 4 + rLevel; // level 0 = 4x4, level 1 = 5x5, level 2 = 6x6, level 3 = 7x7, level 4 = 8x8
+    let roomSize = 6; // Locked to 6x6 room
 
-    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room (" + roomSize + "x" + roomSize + ")";
+    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room (6x6)";
     document.getElementById('returnRoomBtn').style.display = isVisiting ? "inline-block" : "none";
-    document.getElementById('expandRoomBtn').style.display = (isVisiting || rLevel >= 4) ? "none" : "inline-block";
-    document.getElementById('rotateRoomBtn').style.display = isVisiting ? "none" : "inline-block";
     document.getElementById('roomInstructText').textContent = isVisiting ? "👀 Viewing Mode · Interactive edit disabled" : "📱 Click/Tap object to select & drag · Click Rotate or press R to spin";
 
     container.innerHTML = `
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
       <div class="room-top-controls">
-        ${isVisiting || rLevel >= 4 ? '' : '<button class="btn secondary" id="expandRoomBtn" style="padding:6px 10px;font-size:11px" onclick="expandRoom()">📐 Expand Room (100 🪙)</button>'}
         ${isVisiting ? '' : '<button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>'}
       </div>
       <div class="room-instructions">${isVisiting ? '👀 Visiting Room Mode' : '📱 Click/Tap object to select & drag · Click Rotate or press R to spin'}</div>
@@ -1017,7 +999,7 @@ function init3DRoom() {
     scene.background = new THREE.Color(0x13221a);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    let camDist = 7 + rLevel * 1.2;
+    let camDist = 9;
     camera.position.set(camDist, camDist * 0.8, camDist);
     camera.lookAt(0, 1, 0);
 
@@ -1295,7 +1277,7 @@ async function saveProfile() {
   render();
   renderHeaderSpotify(userData.spotifyUrl);
   fetchAllMembers();
-  toast('Profile saved to Firebase & local storage!');
+  toast('Profile saved successfully!');
 }
 
 window.addEventListener('DOMContentLoaded', () => {
