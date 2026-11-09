@@ -62,14 +62,9 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 .trash-drop-zone{position:absolute;bottom:16px;right:16px;background:rgba(217,83,79,0.9);color:#fff;border:2px dashed #fff;padding:10px 16px;border-radius:12px;font:12px 'DM Mono';font-weight:800;display:none;z-index:6;box-shadow:0 4px 0 rgba(0,0,0,0.3);pointer-events:none;transition:.2s}
 .trash-drop-zone.highlight{background:rgba(255,50,50,1);transform:scale(1.08)}
 
-/* D-Pad Overlay for Cat Controls */
-.dpad-container{position:absolute;bottom:12px;right:12px;display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:4px;z-index:6;background:rgba(20,32,26,0.85);padding:6px;border-radius:14px;border:1px solid var(--line);box-shadow:0 4px 0 var(--shadow)}
-.dpad-btn{background:var(--panel2);border:1px solid var(--line);color:var(--lime);border-radius:8px;font-weight:900;font-size:16px;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation}
-.dpad-btn:active,.dpad-btn.active{background:var(--lime);color:#121c16}
-.dpad-btn.up{grid-column:2;grid-row:1}
-.dpad-btn.left{grid-column:1;grid-row:2}
-.dpad-btn.right{grid-column:3;grid-row:2}
-.dpad-btn.down{grid-column:2;grid-row:3}
+/* Virtual Analog Joystick UI */
+.joystick-container{position:absolute;bottom:14px;right:14px;width:100px;height:100px;background:rgba(20,32,26,0.75);border:2px solid var(--line);border-radius:50%;z-index:6;touch-action:none;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 0 var(--shadow)}
+.joystick-knob{width:44px;height:44px;background:var(--lime);border-radius:50%;position:absolute;box-shadow:0 3px 0 #739430;pointer-events:none;transition:transform 0.05s linear}
 
 .shopgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.shopitem{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:center}.shopitem b{font-size:13px;display:block;margin-bottom:6px}.shopitem small{color:var(--lime);font:11px 'DM Mono';display:block;margin-bottom:10px}
 .msg-box{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;max-height:240px;overflow-y:auto;margin-bottom:12px}.msg{margin-bottom:10px;font-size:13px;padding:8px 12px;background:var(--panel2);border-radius:8px}.msg b{color:var(--lime)}
@@ -268,14 +263,11 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
           <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
           <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
         </div>
-        <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit/Pan view · Click object to move · <b>Arrow Keys / WASD</b> walk Cat Companion 🐈</div>
+        <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit · Click to move · <b>Joystick / WASD</b> walks Cat 🐈 over furniture</div>
         
-        <!-- Touch Screen Directional Pad -->
-        <div class="dpad-container">
-          <div class="dpad-btn up" id="dpadUp">▲</div>
-          <div class="dpad-btn left" id="dpadLeft">◀</div>
-          <div class="dpad-btn right" id="dpadRight">▶</div>
-          <div class="dpad-btn down" id="dpadDown">▼</div>
+        <!-- Virtual Analog Joystick -->
+        <div class="joystick-container" id="joystickBase">
+          <div class="joystick-knob" id="joystickKnob"></div>
         </div>
       </div>
     </div>
@@ -459,8 +451,9 @@ let friendCamDist = 6.8;
 let friendCameraAngleX = Math.PI / 4;
 let friendCameraAngleY = Math.PI / 4;
 
-// Movement State for Cat Companion
+// Joystick & Key Movement State for Cat Companion
 const movementKeys = { up: false, down: false, left: false, right: false };
+let joystickVector = { x: 0, y: 0 };
 let catMeshReference = null;
 let roomAnimationId = null;
 
@@ -1419,7 +1412,7 @@ function rotateCurrentFurniture() {
   }
 }
 
-// Global Key Listeners for Cat Companion Movement & Rotate
+// Global Keyboard Listeners for Cat Companion Movement & Rotate
 window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (["arrowup", "w"].includes(k)) movementKeys.up = true;
@@ -1427,7 +1420,6 @@ window.addEventListener('keydown', (e) => {
   if ("arrowleft" === k || "a" === k) movementKeys.left = true;
   if ("arrowright" === k || "d" === k) movementKeys.right = true;
 
-  // Prevent default page scrolling when using arrow keys inside the room
   if(["arrowup","arrowdown","arrowleft","arrowright"].includes(k) && document.getElementById('room').classList.contains('active')) {
     e.preventDefault();
   }
@@ -1467,32 +1459,59 @@ function init3DRoom() {
         <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
         <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
       </div>
-      <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit/Pan view · Click object to move · <b>Arrow Keys / WASD</b> walk Cat Companion 🐈</div>
+      <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit · Click to move · <b>Joystick / WASD</b> walks Cat 🐈 over furniture</div>
       
-      <div class="dpad-container">
-        <div class="dpad-btn up" id="dpadUp">▲</div>
-        <div class="dpad-btn left" id="dpadLeft">◀</div>
-        <div class="dpad-btn right" id="dpadRight">▶</div>
-        <div class="dpad-btn down" id="dpadDown">▼</div>
+      <!-- Virtual Analog Joystick -->
+      <div class="joystick-container" id="joystickBase">
+        <div class="joystick-knob" id="joystickKnob"></div>
       </div>
     `;
 
-    // Bind touch D-Pad controls
-    const bindDpad = (id, keyName) => {
-      let el = document.getElementById(id);
-      if(!el) return;
-      const start = (e) => { e.preventDefault(); movementKeys[keyName] = true; el.classList.add('active'); };
-      const end = (e) => { e.preventDefault(); movementKeys[keyName] = false; el.classList.remove('active'); };
-      el.addEventListener('mousedown', start);
-      el.addEventListener('mouseup', end);
-      el.addEventListener('mouseleave', end);
-      el.addEventListener('touchstart', start, {passive:false});
-      el.addEventListener('touchend', end, {passive:false});
-    };
-    bindDpad('dpadUp', 'up');
-    bindDpad('dpadDown', 'down');
-    bindDpad('dpadLeft', 'left');
-    bindDpad('dpadRight', 'right');
+    // Initialize Virtual Analog Joystick Touch/Mouse Logic
+    const joystickBase = document.getElementById('joystickBase');
+    const joystickKnob = document.getElementById('joystickKnob');
+    let joystickActive = false;
+    let joystickCenter = { x: 0, y: 0 };
+    const maxRadius = 32;
+
+    function handleJoystickStart(clientX, clientY) {
+      joystickActive = true;
+      let rect = joystickBase.getBoundingClientRect();
+      joystickCenter.x = rect.left + rect.width / 2;
+      joystickCenter.y = rect.top + rect.height / 2;
+      updateJoystickMove(clientX, clientY);
+    }
+
+    function updateJoystickMove(clientX, clientY) {
+      if (!joystickActive) return;
+      let dx = clientX - joystickCenter.x;
+      let dy = clientY - joystickCenter.y;
+      let dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > maxRadius) {
+        dx = (dx / dist) * maxRadius;
+        dy = (dy / dist) * maxRadius;
+      }
+      joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+      joystickVector.x = dx / maxRadius;
+      joystickVector.y = dy / maxRadius;
+    }
+
+    function handleJoystickEnd() {
+      joystickActive = false;
+      joystickVector.x = 0;
+      joystickVector.y = 0;
+      joystickKnob.style.transform = `translate(0px, 0px)`;
+    }
+
+    if(joystickBase) {
+      joystickBase.addEventListener('mousedown', (e) => { handleJoystickStart(e.clientX, e.clientY); e.stopPropagation(); });
+      window.addEventListener('mousemove', (e) => { if(joystickActive) updateJoystickMove(e.clientX, e.clientY); });
+      window.addEventListener('mouseup', () => { if(joystickActive) handleJoystickEnd(); });
+
+      joystickBase.addEventListener('touchstart', (e) => { handleJoystickStart(e.touches[0].clientX, e.touches[0].clientY); e.stopPropagation(); }, {passive:true});
+      window.addEventListener('touchmove', (e) => { if(joystickActive && e.touches.length > 0) updateJoystickMove(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
+      window.addEventListener('touchend', () => { if(joystickActive) handleJoystickEnd(); });
+    }
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x13221a);
@@ -1603,8 +1622,10 @@ function init3DRoom() {
     }
     updateWallVisibility();
 
-    // Cat walking movement update loop
+    // Cat walking movement, walking bob/tilt animation, and surface height detection (walking on top of furniture)
     let saveDebounceTimer = null;
+    let walkCycle = 0;
+    
     function updateCatMovement() {
       if (!catMeshReference) return;
 
@@ -1614,34 +1635,73 @@ function init3DRoom() {
       if (movementKeys.left)  moveX -= 1;
       if (movementKeys.right) moveX += 1;
 
+      if (joystickVector.x !== 0 || joystickVector.y !== 0) {
+        moveX += joystickVector.x;
+        moveZ += joystickVector.y;
+      }
+
       if (moveX !== 0 || moveZ !== 0) {
-        // Calculate camera-relative forward and right vectors
         let forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), currentCameraAngleY);
         let right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), currentCameraAngleY);
         
         let moveDir = new THREE.Vector3()
           .addScaledVector(forward, -moveZ)
-          .addScaledVector(right, moveX)
-          .normalize();
+          .addScaledVector(right, moveX);
+        
+        if(moveDir.length() > 1) moveDir.normalize();
 
-        const speed = 0.065;
+        const speed = 0.06;
         const bound = halfSize - 0.45;
 
-        catMeshReference.position.x = Math.max(-bound, Math.min(bound, catMeshReference.position.x + moveDir.x * speed));
-        catMeshReference.position.z = Math.max(-bound, Math.min(bound, catMeshReference.position.z + moveDir.z * speed));
+        let newX = Math.max(-bound, Math.min(bound, catMeshReference.position.x + moveDir.x * speed));
+        let newZ = Math.max(-bound, Math.min(bound, catMeshReference.position.z + moveDir.z * speed));
 
-        // Smoothly rotate cat to face movement direction
+        // Raycast downwards or check furniture bounding boxes to let cat walk on top of items
+        let targetSurfaceY = 0;
+        furnitureMeshes.forEach(other => {
+          if (other !== catMeshReference && !other.userData.isWallItem && other.userData.surfaceHeight !== undefined) {
+            let dx = Math.abs(other.position.x - newX);
+            let dz = Math.abs(other.position.z - newZ);
+            // Check if cat is over a furniture top surface
+            if (dx < 1.1 && dz < 0.9) {
+              targetSurfaceY = other.userData.surfaceHeight;
+            }
+          }
+        });
+
+        catMeshReference.position.x = newX;
+        catMeshReference.position.z = newZ;
+
+        // Apply walking bob (up/down) and tilt animation
+        walkCycle += 0.25;
+        let bobY = targetSurfaceY + Math.abs(Math.sin(walkCycle)) * 0.06;
+        catMeshReference.position.y = bobY;
+
         let targetAngle = Math.atan2(moveDir.x, moveDir.z);
         catMeshReference.rotation.y = targetAngle;
+        catMeshReference.rotation.z = Math.sin(walkCycle) * 0.08; // Gentle side-to-side waddle tilt
 
-        // Save position to state & sync to cloud (throttled)
         if (!userData.positions.cat) userData.positions.cat = { x: 0, y: 0, z: 0, rot: 0 };
         userData.positions.cat.x = catMeshReference.position.x;
+        userData.positions.cat.y = targetSurfaceY;
         userData.positions.cat.z = catMeshReference.position.z;
         userData.positions.cat.rot = catMeshReference.rotation.y;
 
         clearTimeout(saveDebounceTimer);
         saveDebounceTimer = setTimeout(() => { commitCloud(); }, 800);
+      } else {
+        // Return cat to resting position level when not walking
+        walkCycle = 0;
+        let restingY = 0;
+        furnitureMeshes.forEach(other => {
+          if (other !== catMeshReference && !other.userData.isWallItem && other.userData.surfaceHeight !== undefined) {
+            let dx = Math.abs(other.position.x - catMeshReference.position.x);
+            let dz = Math.abs(other.position.z - catMeshReference.position.z);
+            if (dx < 1.1 && dz < 0.9) restingY = other.userData.surfaceHeight;
+          }
+        });
+        catMeshReference.position.y += (restingY - catMeshReference.position.y) * 0.2;
+        catMeshReference.rotation.z *= 0.8;
       }
     }
 
@@ -1676,6 +1736,7 @@ function init3DRoom() {
     }
 
     function handleStart(e) {
+      if(e.target.closest('#joystickBase')) return; // Ignore if interacting with joystick
       updatePointer(e);
       let clientX = e.touches ? e.touches[0].clientX : e.clientX;
       let clientY = e.touches ? e.touches[0].clientY : e.clientY;
