@@ -188,8 +188,8 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
       </div>
       <div class="panel">
         <h3>💬 Direct Messages</h3>
-        <label class="sub">Recipient Email:</label>
-        <input class="field" id="dmRecipient" placeholder="friend@example.com">
+        <label class="sub">Recipient Display Name:</label>
+        <input class="field" id="dmRecipient" placeholder="Member Name...">
         <div class="msg-box" id="dmContainer"></div>
         <input class="field" id="dmInput" placeholder="Type a message...">
         <button class="btn full" onclick="sendDM()">SEND DM</button>
@@ -199,11 +199,11 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
   <section class="view" id="friends">
     <div class="hero">
-      <div><div class="eyebrow">CLUB DIRECTORY</div><h2>Find & Add Friends</h2><p>Search registered club members by email, DM them, or visit their 3D room!</p></div>
+      <div><div class="eyebrow">CLUB DIRECTORY</div><h2>Find & Add Friends</h2><p>Search members by display name, send DMs, or visit their 3D room!</p></div>
     </div>
     <div class="panel">
       <h3>🔍 Search Club Members</h3>
-      <input class="field" id="friendSearchInput" placeholder="Search by email..." oninput="filterDirectory()">
+      <input class="field" id="friendSearchInput" placeholder="Search by display name..." oninput="filterDirectory()">
       <div id="directoryContainer" style="margin-top:12px"></div>
     </div>
     <div class="panel">
@@ -215,8 +215,8 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <section class="view" id="profile">
     <div class="panel">
       <h3>👤 Profile Settings</h3>
-      <label class="sub">Display Name</label>
-      <input class="field" id="nameInput">
+      <label class="sub">Display Name (Publicly visible to members)</label>
+      <input class="field" id="nameInput" placeholder="e.g. EcoWarrior">
       
       <label class="sub" style="margin-top:14px">🐱 Cat Companion Name</label>
       <input class="field" id="catNameInput" placeholder="Whiskers">
@@ -267,21 +267,20 @@ let userData = {
     window:{x:1.5,y:3.2,z:-3.92,rot:0,wall:'back'},
     door:{x:-3.92,y:1.5,z:1.5,rot:Math.PI/2,wall:'left'}
   },
-  name: 'Member',
+  name: '',
+  uid: '',
   catName: 'Whiskers',
   catColor: '0xffa500',
   friends: [],
   photos: []
 };
-let photoDatabase = [];
 let allClubMembers = [];
 let activeSelectedFurniture = null;
 let counts = {cans:0, plastic:0, glass:0};
 let roomInstance = null;
 let isWalkModeActive = false;
 
-// Viewing room state
-let visitingFriendEmail = null;
+let visitingFriendUid = null;
 let visitingFriendData = null;
 
 function toggleWalkMode() {
@@ -380,8 +379,12 @@ async function handleAuth() {
     await auth.signInWithEmailAndPassword(email, password);
   } catch (err) {
     try {
-      await auth.createUserWithEmailAndPassword(email, password);
-      await db.collection('users').doc(email).set({ data: userData, email });
+      let res = await auth.createUserWithEmailAndPassword(email, password);
+      let defaultName = "Member #" + res.user.uid.substring(0,4);
+      userData.name = defaultName;
+      userData.uid = res.user.uid;
+      userData.photos = [];
+      await db.collection('user_profiles').doc(res.user.uid).set({ data: userData, uid: res.user.uid, displayName: defaultName });
     } catch (regErr) {
       toast('Auth error: ' + regErr.message);
     }
@@ -391,19 +394,21 @@ async function handleAuth() {
 function setupCloudListeners() {
   if (!currentUser) return;
   
-  db.collection('users').doc(currentUser.email).onSnapshot(doc => {
+  db.collection('user_profiles').doc(currentUser.uid).onSnapshot(doc => {
     if (doc.exists) {
       let d = doc.data();
       if(d.data) {
         userData = d.data;
+        if(!userData.name) userData.name = "Member #" + currentUser.uid.substring(0,4);
         if(!userData.friends) userData.friends = [];
         if(!userData.photos) userData.photos = [];
-        photoDatabase = userData.photos;
       }
       render();
     } else {
-      userData.photos = photoDatabase;
-      db.collection('users').doc(currentUser.email).set({ data: userData, email: currentUser.email });
+      userData.name = "Member #" + currentUser.uid.substring(0,4);
+      userData.uid = currentUser.uid;
+      userData.photos = [];
+      db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, displayName: userData.name });
     }
   });
 
@@ -416,7 +421,7 @@ function setupCloudListeners() {
     let messages = [];
     snapshot.forEach(doc => {
       let m = doc.data();
-      if (m.from === currentUser.email || m.to === currentUser.email) messages.push(m);
+      if (m.fromUid === currentUser.uid || m.toUid === currentUser.uid) messages.push(m);
     });
     renderDMs(messages);
   });
@@ -424,12 +429,13 @@ function setupCloudListeners() {
 
 async function fetchAllMembers() {
   try {
-    let snap = await db.collection('users').get();
+    let snap = await db.collection('user_profiles').get();
     allClubMembers = [];
     snap.forEach(doc => {
       let d = doc.data();
-      if(d.email && d.email !== currentUser.email) {
-        allClubMembers.push({ email: d.email, name: (d.data && d.data.name) ? d.data.name : d.email, data: d.data });
+      if(d.uid && d.uid !== currentUser.uid) {
+        let name = (d.displayName || (d.data && d.data.name)) || ("Member #" + d.uid.substring(0,4));
+        allClubMembers.push({ uid: d.uid, name: name, data: d.data });
       }
     });
     renderFriendsList();
@@ -438,8 +444,7 @@ async function fetchAllMembers() {
 
 function commitCloud() {
   if (!currentUser) return;
-  userData.photos = photoDatabase;
-  db.collection('users').doc(currentUser.email).set({ data: userData, email: currentUser.email }, { merge: true }).catch(e => {});
+  db.collection('user_profiles').doc(currentUser.uid).set({ data: userData, uid: currentUser.uid, displayName: userData.name }, { merge: true }).catch(e => {});
   render();
 }
 
@@ -501,46 +506,46 @@ function buy(id) {
   toast('Purchased ' + p.name + '!');
 }
 
-function addFriend(email) {
+function addFriend(uid) {
   if(!userData.friends) userData.friends = [];
-  if(userData.friends.includes(email)) return toast('Already on your friends list!');
-  userData.friends.push(email);
+  if(userData.friends.includes(uid)) return toast('Already on your friends list!');
+  userData.friends.push(uid);
   commitCloud();
-  toast('Added ' + email + ' to friends! 👥');
+  toast('Added to friends! 👥');
   renderFriendsList();
 }
 
-function removeFriend(email) {
+function removeFriend(uid) {
   if(!userData.friends) return;
-  userData.friends = userData.friends.filter(f => f !== email);
+  userData.friends = userData.friends.filter(f => f !== uid);
   commitCloud();
   toast('Removed friend.');
   renderFriendsList();
 }
 
-function messageFriend(email) {
-  document.getElementById('dmRecipient').value = email;
+function messageFriend(name) {
+  document.getElementById('dmRecipient').value = name;
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'social'));
   document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'social'));
-  toast('Ready to message ' + email);
+  toast('Ready to message ' + name);
 }
 
-async function visitFriendRoom(email) {
-  let doc = await db.collection('users').doc(email).get();
+async function visitFriendRoom(uid, name) {
+  let doc = await db.collection('user_profiles').doc(uid).get();
   if(doc.exists && doc.data().data) {
-    visitingFriendEmail = email;
+    visitingFriendUid = uid;
     visitingFriendData = doc.data().data;
     document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'room'));
     document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'room'));
     init3DRoom();
-    toast("Viewing " + email + "'s Room!");
+    toast("Viewing " + name + "'s Room!");
   } else {
     toast('Could not load friend room!');
   }
 }
 
 function viewMyOwnRoom() {
-  visitingFriendEmail = null;
+  visitingFriendUid = null;
   visitingFriendData = null;
   init3DRoom();
   toast('Returned to your room!');
@@ -554,12 +559,12 @@ function loadDirectory() {
 function filterDirectory() {
   let q = document.getElementById('friendSearchInput').value.trim().toLowerCase();
   let container = document.getElementById('directoryContainer');
-  let filtered = allClubMembers.filter(m => m.email.includes(q) || m.name.toLowerCase().includes(q));
+  let filtered = allClubMembers.filter(m => m.name.toLowerCase().includes(q));
   
   container.innerHTML = filtered.map(m => `
     <div class="friend-item">
-      <div><b>${m.name}</b><small style="display:block;color:var(--muted)">${m.email}</small></div>
-      ${(userData.friends || []).includes(m.email) ? '<span style="font:11px \'DM Mono\';color:var(--lime)">FRIEND ✓</span>' : `<button class="btn" style="padding:6px 12px;font-size:12px" onclick="addFriend('${m.email}')">ADD FRIEND ➕</button>`}
+      <div><b>${m.name}</b></div>
+      ${(userData.friends || []).includes(m.uid) ? '<span style="font:11px \'DM Mono\';color:var(--lime)">FRIEND ✓</span>' : `<button class="btn" style="padding:6px 12px;font-size:12px" onclick="addFriend('${m.uid}')">ADD FRIEND ➕</button>`}
     </div>
   `).join('') || '<div class="sub">No matching club members found.</div>';
 }
@@ -569,16 +574,21 @@ function renderFriendsList() {
   let myFriendsEl = document.getElementById('myFriendsContainer');
   if(!myFriendsEl) return;
   let friends = userData.friends || [];
-  myFriendsEl.innerHTML = friends.map(f => `
-    <div class="friend-item">
-      <b>${f}</b>
-      <div style="display:flex;gap:6px">
-        <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="visitFriendRoom('${f}')">👀 VISIT ROOM</button>
-        <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="messageFriend('${f}')">💬 DM</button>
-        <button class="btn danger" style="padding:6px 10px;font-size:11px" onclick="removeFriend('${f}')">❌</button>
+
+  myFriendsEl.innerHTML = friends.map(fUid => {
+    let fMember = allClubMembers.find(m => m.uid === fUid);
+    let name = fMember ? fMember.name : "Member #" + fUid.substring(0,4);
+    return `
+      <div class="friend-item">
+        <b>${name}</b>
+        <div style="display:flex;gap:6px">
+          <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="visitFriendRoom('${fUid}', '${name}')">👀 VISIT ROOM</button>
+          <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="messageFriend('${name}')">💬 DM</button>
+          <button class="btn danger" style="padding:6px 10px;font-size:11px" onclick="removeFriend('${fUid}')">❌</button>
+        </div>
       </div>
-    </div>
-  `).join('') || '<div class="sub">No friends added yet. Search above to add club members!</div>';
+    `;
+  }).join('') || '<div class="sub">No friends added yet. Search above to add club members!</div>';
 }
 
 function addPhotoEntry() {
@@ -596,10 +606,9 @@ function addPhotoEntry() {
   reader.onload = function(e) {
     img.src = e.target.result;
     img.onload = function() {
-      // Compress canvas photo so it fits cleanly in Firebase
       let canvas = document.createElement('canvas');
       let ctx = canvas.getContext('2d');
-      let maxW = 500, maxH = 500;
+      let maxW = 320, maxH = 320;
       let width = img.width, height = img.height;
 
       if (width > height) {
@@ -610,19 +619,21 @@ function addPhotoEntry() {
       canvas.width = width;
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
-      let compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      let compressedDataUrl = canvas.toDataURL('image/jpeg', 0.5);
 
-      photoDatabase.unshift({
+      if(!userData.photos) userData.photos = [];
+      userData.photos.unshift({
         id: Date.now().toString(),
         title,
         image: compressedDataUrl,
         status,
-        time: new Date().toLocaleString(),
-        user: currentUser.email
+        time: new Date().toLocaleDateString()
       });
+      
+      commitCloud();
       document.getElementById('photoTitle').value = '';
       fileInput.value = '';
-      commitCloud();
+      renderPhotoDatabase();
       toast('Photo saved permanently!');
     }
   };
@@ -630,24 +641,29 @@ function addPhotoEntry() {
 }
 
 function togglePhotoStatus(id) {
-  let p = photoDatabase.find(x => x.id === id);
+  if(!userData.photos) userData.photos = [];
+  let p = userData.photos.find(x => x.id === id);
   if(p) {
     p.status = p.status === 'Pending Cleanup' ? 'Cleaned Up' : 'Pending Cleanup';
     commitCloud();
+    renderPhotoDatabase();
     toast('Status updated');
   }
 }
 
 function deletePhoto(id) {
-  photoDatabase = photoDatabase.filter(x => x.id !== id);
+  if(!userData.photos) userData.photos = [];
+  userData.photos = userData.photos.filter(x => x.id !== id);
   commitCloud();
+  renderPhotoDatabase();
   toast('Photo deleted');
 }
 
 function renderPhotoDatabase() {
   let grid = document.getElementById('photoGridContainer');
   if(!grid) return;
-  grid.innerHTML = photoDatabase.map(p => `
+  let photos = userData.photos || [];
+  grid.innerHTML = photos.map(p => `
     <div class="photo-card">
       <img src="${p.image}" alt="Spot">
       <div class="photo-info">
@@ -701,7 +717,7 @@ function createItemModel(id, customCatColor=0xffa500) {
 }
 
 function rotateCurrentFurniture() {
-  if (visitingFriendEmail) return; // Cannot rotate while visiting
+  if (visitingFriendUid) return;
   playSoundFX(700, 'square', 0.08);
   if (activeSelectedFurniture && userData) {
     let id = activeSelectedFurniture.userData.id;
@@ -721,10 +737,10 @@ function init3DRoom() {
     const container = document.getElementById('roomCanvasContainer');
     if (!container) return;
 
-    let isVisiting = !!visitingFriendEmail;
+    let isVisiting = !!visitingFriendUid;
     let targetData = isVisiting ? visitingFriendData : userData;
 
-    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || visitingFriendEmail) + "'s Room" : "🏡 My Room";
+    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room";
     document.getElementById('returnRoomBtn').style.display = isVisiting ? "inline-block" : "none";
     document.getElementById('rotateRoomBtn').style.display = isVisiting ? "none" : "inline-block";
     document.getElementById('roomInstructText').textContent = isVisiting ? "👀 Viewing Mode · Interactive edit disabled" : "📱 Click/Tap object to select & drag · Click Rotate or press R to spin";
@@ -799,7 +815,7 @@ function init3DRoom() {
     }
 
     function handleStart(e) {
-      if (isVisiting) return; // Prevent drag edits in friend rooms
+      if (isVisiting) return;
       updatePointer(e);
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(scene.children, true);
@@ -903,7 +919,7 @@ async function postFeed() {
   let docRef = db.collection('social').doc('global');
   let doc = await docRef.get();
   let posts = doc.exists ? (doc.data().posts || []) : [];
-  posts.unshift({ id: Date.now().toString(), user: userData.name || currentUser.email, text, time: new Date().toLocaleTimeString(), comments: [] });
+  posts.unshift({ id: Date.now().toString(), user: userData.name || "Member", text, time: new Date().toLocaleTimeString(), comments: [] });
   await docRef.set({ posts }, { merge: true });
   document.getElementById('postInput').value = '';
   toast('Posted to Club Feed!');
@@ -921,7 +937,7 @@ async function addComment(postId) {
     let p = posts.find(x => x.id === postId);
     if(p) {
       if(!p.comments) p.comments = [];
-      p.comments.push({ user: userData.name || currentUser.email, text, time: new Date().toLocaleTimeString() });
+      p.comments.push({ user: userData.name || "Member", text, time: new Date().toLocaleTimeString() });
       await docRef.set({ posts }, { merge: true });
       toast('Comment added!');
     }
@@ -929,13 +945,18 @@ async function addComment(postId) {
 }
 
 async function sendDM() {
-  let recipient = document.getElementById('dmRecipient').value.trim().toLowerCase();
+  let recipientName = document.getElementById('dmRecipient').value.trim();
   let text = document.getElementById('dmInput').value.trim();
-  if (!recipient || !text) return toast('Enter recipient email and message!');
+  if (!recipientName || !text) return toast('Enter recipient name and message!');
+
+  let foundMember = allClubMembers.find(m => m.name.toLowerCase() === recipientName.toLowerCase());
+  let targetUid = foundMember ? foundMember.uid : null;
 
   await db.collection('messages').add({
-    from: currentUser.email,
-    to: recipient,
+    fromUid: currentUser.uid,
+    fromName: userData.name || "Member",
+    toUid: targetUid,
+    toName: recipientName,
     text,
     timestamp: firebase.firestore.FieldValue.serverTimestamp(),
     time: new Date().toLocaleTimeString()
@@ -973,7 +994,7 @@ function renderDMs(messages) {
   let dmEl = document.getElementById('dmContainer');
   if (dmEl) {
     dmEl.innerHTML = messages.map(m => `
-      <div class="msg"><b>${m.from === currentUser.email ? 'You (to ' + m.to + ')' : m.from}:</b> ${m.text}</div>
+      <div class="msg"><b>${m.fromUid === currentUser.uid ? 'You (to ' + m.toName + ')' : m.fromName}:</b> ${m.text}</div>
     `).join('') || '<div class="sub">No direct messages yet.</div>';
   }
 }
@@ -981,7 +1002,7 @@ function renderDMs(messages) {
 function render() {
   if (!userData) return;
   document.getElementById('coins').textContent = userData.coins;
-  document.getElementById('nameInput').value = userData.name || currentUser.email;
+  document.getElementById('nameInput').value = userData.name || '';
   document.getElementById('catNameInput').value = userData.catName || 'Whiskers';
   document.getElementById('catColorInput').value = userData.catColor || '0xffa500';
 
@@ -997,7 +1018,8 @@ function render() {
 }
 
 async function saveProfile() {
-  userData.name = document.getElementById('nameInput').value.trim() || currentUser.email;
+  let newName = document.getElementById('nameInput').value.trim();
+  userData.name = newName || ("Member #" + currentUser.uid.substring(0,4));
   userData.catName = document.getElementById('catNameInput').value.trim() || 'Whiskers';
   userData.catColor = document.getElementById('catColorInput').value;
   commitCloud();
