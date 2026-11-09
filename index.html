@@ -143,7 +143,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <button class="nav" data-view="steps"><span>👟</span>Step Logger</button>
   <button class="nav" data-view="photos"><span>📸</span>Photo Database</button>
   <button class="nav" data-view="room" onclick="init3DRoom()"><span>🏡</span>My Room</button>
-  <button class="nav" data-view="shop"><span>🛍️</span>Shop & Inventory</button>
+  <button class="nav" data-view="shop"><span>🛍️</span>Shop</button>
   <button class="nav" data-view="social"><span>💬</span>Social & DMs</button>
   <button class="nav" data-view="friends" onclick="loadDirectory()"><span>👥</span>Members & Friends</button>
   <button class="nav" data-view="profile"><span>👤</span>Profile</button>
@@ -220,18 +220,16 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
       </div>
       <div id="friendSpotifyContainer" class="spotify-container" style="display:none"></div>
     </div>
+
+    <div class="panel" id="roomInventoryPanel">
+      <h3>📦 Room Inventory & Storage</h3>
+      <p class="sub">Click any owned item to place it in your room or store it away!</p>
+      <div class="shopgrid" id="roomInventoryGrid"></div>
+    </div>
   </section>
 
   <section class="view" id="shop">
-    <div class="panel">
-      <h3>📦 Room Inventory (Stored Items)</h3>
-      <p class="sub">Items stored here are out of your room but ready to be placed anytime!</p>
-      <div class="shopgrid" id="inventoryGrid"></div>
-    </div>
-    <div class="panel" style="margin-top:20px">
-      <h3>🛍️ Furniture Shop</h3>
-      <div class="shopgrid" id="shopgrid"></div>
-    </div>
+    <div class="panel"><h3>🪑 Furniture, Windows, Doors & Decor Shop</h3><div class="shopgrid" id="shopgrid"></div></div>
   </section>
 
   <section class="view" id="social">
@@ -506,7 +504,7 @@ function setupCloudListeners() {
       
       userData.coins = sourceObj.coins !== undefined ? sourceObj.coins : userData.coins;
       userData.owned = sourceObj.owned || userData.owned;
-      userData.placed = sourceObj.placed || userData.owned; // fallback
+      userData.placed = sourceObj.placed || userData.owned;
       userData.positions = sourceObj.positions || userData.positions;
       userData.steps = sourceObj.steps !== undefined ? sourceObj.steps : userData.steps;
       userData.name = sourceObj.name || userData.name;
@@ -1337,11 +1335,9 @@ function render() {
   document.getElementById('spotifyInput').value = userData.spotifyUrl || '';
 
   let owned = userData.owned || [];
-  let placed = userData.userData_placed || userData.placed || owned;
-
-  let inventoryEl = document.getElementById('inventoryGrid');
-  if(inventoryEl) {
-    inventoryEl.innerHTML = owned.map(id => {
+  let roomInvEl = document.getElementById('roomInventoryGrid');
+  if(roomInvEl) {
+    roomInvEl.innerHTML = owned.map(id => {
       let p = products.find(x => x.id === id);
       if(!p) return '';
       let isPlaced = (userData.placed || []).includes(id);
