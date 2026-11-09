@@ -1525,6 +1525,7 @@ function init3DRoom() {
         let isClosestTwo = (w === wallDistances[0].wall || w === wallDistances[1].wall);
         let show = !isClosestTwo;
         w.visible = show;
+        w.raycast = show ? THREE.Mesh.prototype.raycast : () => {}; // Completely disable raycast clicks when hidden
       });
 
       furnitureMeshes.forEach(fm => {
@@ -1835,6 +1836,7 @@ function initFriend3DRoom() {
         let isClosestTwo = (w === wallDistances[0].wall || w === wallDistances[1].wall);
         let show = !isClosestTwo;
         w.visible = show;
+        w.raycast = show ? THREE.Mesh.prototype.raycast : () => {};
       });
 
       friendFurniture.forEach(fm => {
