@@ -16,11 +16,9 @@
 :root{--bg:#0b1310;--panel:#14201a;--panel2:#1b2c23;--line:#263c31;--mint:#98d682;--lime:#d2f567;--cream:#f5f2e3;--muted:#849c8c;--shadow:#040705}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#1c382a 0,transparent 55%),var(--bg);color:var(--cream);font-family:Nunito,system-ui,sans-serif;min-height:100vh;overflow-x:hidden;transition:.3s ease}
 
-/* On a Walk / Nature Mode Theme Overrides */
 body.walk-mode{--bg:#0d1926;--panel:#162438;--panel2:#1f334d;--line:#2c4669;--mint:#82c4d9;--lime:#67e8f0;--cream:#e3f2f5;--muted:#84a6bc;--shadow:#04090f}
 body.walk-mode{background:radial-gradient(circle at 50% -20%,#1e3b54 0,transparent 55%),var(--bg)!important}
 
-/* VHS CRT Scanline Overlay */
 body::after{content:"";position:fixed;top:0;left:0;width:100vw;height:100vh;background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,0.25) 50%),linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03));z-index:9999;background-size:100% 3px,6px 100%;pointer-events:none}
 
 button,input,textarea,select{font:inherit}button{cursor:pointer}.app{max-width:1200px;margin:auto;padding:20px;position:relative;z-index:2}
@@ -98,16 +96,12 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 <div class="app">
 <header>
   <div class="brand">
-    <!-- Exact vector recreation of your Tree + Sun/Sunset + The Do Better Society logo -->
     <svg class="logo-badge" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <circle cx="65" cy="55" r="32" fill="#fed353" opacity="0.9"/>
-      <!-- Lush green tree canopy layers -->
       <path d="M 38 65 C 20 62, 16 42, 34 32 C 40 22, 60 22, 68 35 C 80 32, 92 48, 80 65 C 85 75, 70 85, 55 85 C 42 85, 35 75, 38 65 Z" fill="#71a94e"/>
       <path d="M 32 52 C 24 45, 30 30, 45 28 C 55 20, 75 28, 72 45 C 82 50, 78 68, 65 72 C 50 75, 35 60, 32 52 Z" fill="#88c45d"/>
       <rect x="48" y="70" width="12" height="22" fill="#5c4033" rx="3"/>
-      <!-- Blue banner base -->
       <path d="M 12 85 C 12 78, 25 76, 60 76 C 95 76, 108 78, 108 85 C 108 105, 95 110, 60 110 C 25 110, 12 105, 12 85 Z" fill="#1b2363" stroke="#485bd8" stroke-width="2.5"/>
-      <!-- Text on logo -->
       <text x="60" y="93" font-family="Nunito, sans-serif" font-weight="900" font-size="11.5" fill="#ffffff" text-anchor="middle">The Do Better</text>
       <text x="60" y="106" font-family="Nunito, sans-serif" font-weight="900" font-size="13" fill="#fed353" text-anchor="middle">Society</text>
     </svg>
@@ -168,10 +162,14 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
 
   <section class="view" id="room">
     <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room</h3>
+        <button class="btn secondary" id="returnRoomBtn" style="display:none;padding:6px 12px;font-size:12px" onclick="viewMyOwnRoom()">RETURN TO MY ROOM</button>
+      </div>
       <div id="roomCanvasContainer">
         <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
-        <button class="btn secondary rotate-btn-overlay" onclick="rotateCurrentFurniture()">🔄 Rotate (R)</button>
-        <div class="room-instructions">📱 Click/Tap object to select & drag · Click Rotate or press R to spin</div>
+        <button class="btn secondary rotate-btn-overlay" id="rotateRoomBtn" onclick="rotateCurrentFurniture()">🔄 Rotate (R)</button>
+        <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Click Rotate or press R to spin</div>
       </div>
     </div>
   </section>
@@ -199,10 +197,9 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
     </div>
   </section>
 
-  <!-- FRIENDS VIEW -->
   <section class="view" id="friends">
     <div class="hero">
-      <div><div class="eyebrow">CLUB DIRECTORY</div><h2>Find & Add Friends</h2><p>Search registered club members by email and add them to your friends list.</p></div>
+      <div><div class="eyebrow">CLUB DIRECTORY</div><h2>Find & Add Friends</h2><p>Search registered club members by email, DM them, or visit their 3D room!</p></div>
     </div>
     <div class="panel">
       <h3>🔍 Search Club Members</h3>
@@ -273,7 +270,8 @@ let userData = {
   name: 'Member',
   catName: 'Whiskers',
   catColor: '0xffa500',
-  friends: []
+  friends: [],
+  photos: []
 };
 let photoDatabase = [];
 let allClubMembers = [];
@@ -281,6 +279,10 @@ let activeSelectedFurniture = null;
 let counts = {cans:0, plastic:0, glass:0};
 let roomInstance = null;
 let isWalkModeActive = false;
+
+// Viewing room state
+let visitingFriendEmail = null;
+let visitingFriendData = null;
 
 function toggleWalkMode() {
   isWalkModeActive = !isWalkModeActive;
@@ -379,7 +381,7 @@ async function handleAuth() {
   } catch (err) {
     try {
       await auth.createUserWithEmailAndPassword(email, password);
-      await db.collection('users').doc(email).set({ data: userData, email, photos: [] });
+      await db.collection('users').doc(email).set({ data: userData, email });
     } catch (regErr) {
       toast('Auth error: ' + regErr.message);
     }
@@ -395,11 +397,13 @@ function setupCloudListeners() {
       if(d.data) {
         userData = d.data;
         if(!userData.friends) userData.friends = [];
+        if(!userData.photos) userData.photos = [];
+        photoDatabase = userData.photos;
       }
-      if(d.photos) photoDatabase = d.photos;
       render();
     } else {
-      db.collection('users').doc(currentUser.email).set({ data: userData, email: currentUser.email, photos: [] });
+      userData.photos = photoDatabase;
+      db.collection('users').doc(currentUser.email).set({ data: userData, email: currentUser.email });
     }
   });
 
@@ -425,7 +429,7 @@ async function fetchAllMembers() {
     snap.forEach(doc => {
       let d = doc.data();
       if(d.email && d.email !== currentUser.email) {
-        allClubMembers.push({ email: d.email, name: (d.data && d.data.name) ? d.data.name : d.email });
+        allClubMembers.push({ email: d.email, name: (d.data && d.data.name) ? d.data.name : d.email, data: d.data });
       }
     });
     renderFriendsList();
@@ -434,7 +438,8 @@ async function fetchAllMembers() {
 
 function commitCloud() {
   if (!currentUser) return;
-  db.collection('users').doc(currentUser.email).set({ data: userData, photos: photoDatabase, email: currentUser.email }, { merge: true }).catch(e => {});
+  userData.photos = photoDatabase;
+  db.collection('users').doc(currentUser.email).set({ data: userData, email: currentUser.email }, { merge: true }).catch(e => {});
   render();
 }
 
@@ -520,6 +525,27 @@ function messageFriend(email) {
   toast('Ready to message ' + email);
 }
 
+async function visitFriendRoom(email) {
+  let doc = await db.collection('users').doc(email).get();
+  if(doc.exists && doc.data().data) {
+    visitingFriendEmail = email;
+    visitingFriendData = doc.data().data;
+    document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x.dataset.view === 'room'));
+    document.querySelectorAll('.view').forEach(x => x.classList.toggle('active', x.id === 'room'));
+    init3DRoom();
+    toast("Viewing " + email + "'s Room!");
+  } else {
+    toast('Could not load friend room!');
+  }
+}
+
+function viewMyOwnRoom() {
+  visitingFriendEmail = null;
+  visitingFriendData = null;
+  init3DRoom();
+  toast('Returned to your room!');
+}
+
 function loadDirectory() {
   fetchAllMembers();
   renderFriendsList();
@@ -547,7 +573,8 @@ function renderFriendsList() {
     <div class="friend-item">
       <b>${f}</b>
       <div style="display:flex;gap:6px">
-        <button class="btn secondary" style="padding:6px 12px;font-size:11px" onclick="messageFriend('${f}')">💬 DM</button>
+        <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="visitFriendRoom('${f}')">👀 VISIT ROOM</button>
+        <button class="btn secondary" style="padding:6px 10px;font-size:11px" onclick="messageFriend('${f}')">💬 DM</button>
         <button class="btn danger" style="padding:6px 10px;font-size:11px" onclick="removeFriend('${f}')">❌</button>
       </div>
     </div>
@@ -562,22 +589,44 @@ function addPhotoEntry() {
   if(!title) return toast('Enter location name!');
   if(fileInput.files.length === 0) return toast('Select a photo!');
 
+  let file = fileInput.files[0];
+  let img = new Image();
   let reader = new FileReader();
+  
   reader.onload = function(e) {
-    photoDatabase.unshift({
-      id: Date.now().toString(),
-      title,
-      image: e.target.result,
-      status,
-      time: new Date().toLocaleString(),
-      user: currentUser.email
-    });
-    document.getElementById('photoTitle').value = '';
-    fileInput.value = '';
-    commitCloud();
-    toast('Photo saved permanently!');
+    img.src = e.target.result;
+    img.onload = function() {
+      // Compress canvas photo so it fits cleanly in Firebase
+      let canvas = document.createElement('canvas');
+      let ctx = canvas.getContext('2d');
+      let maxW = 500, maxH = 500;
+      let width = img.width, height = img.height;
+
+      if (width > height) {
+        if (width > maxW) { height *= maxW / width; width = maxW; }
+      } else {
+        if (height > maxH) { width *= maxH / height; height = maxH; }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+      let compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+
+      photoDatabase.unshift({
+        id: Date.now().toString(),
+        title,
+        image: compressedDataUrl,
+        status,
+        time: new Date().toLocaleString(),
+        user: currentUser.email
+      });
+      document.getElementById('photoTitle').value = '';
+      fileInput.value = '';
+      commitCloud();
+      toast('Photo saved permanently!');
+    }
   };
-  reader.readAsDataURL(fileInput.files[0]);
+  reader.readAsDataURL(file);
 }
 
 function togglePhotoStatus(id) {
@@ -628,7 +677,8 @@ function createItemModel(id, customCatColor=0xffa500) {
     addBox(0.4, 0.2, 0.3, 0xffffff, 0.55, 0.42, -0.5);
   }
   else if(id==='cat'){ 
-    let cCol = parseInt(userData.catColor || customCatColor);
+    let activeData = visitingFriendData || userData;
+    let cCol = parseInt(activeData.catColor || customCatColor);
     addBox(0.4, 0.3, 0.35, cCol, 0, 0.15, 0); 
     addBox(0.25, 0.25, 0.25, cCol, 0, 0.38, 0.1); 
     addBox(0.1, 0.1, 0.05, 0xffc0cb, 0, 0.35, 0.23); 
@@ -651,6 +701,7 @@ function createItemModel(id, customCatColor=0xffa500) {
 }
 
 function rotateCurrentFurniture() {
+  if (visitingFriendEmail) return; // Cannot rotate while visiting
   playSoundFX(700, 'square', 0.08);
   if (activeSelectedFurniture && userData) {
     let id = activeSelectedFurniture.userData.id;
@@ -669,10 +720,19 @@ function init3DRoom() {
   setTimeout(() => {
     const container = document.getElementById('roomCanvasContainer');
     if (!container) return;
+
+    let isVisiting = !!visitingFriendEmail;
+    let targetData = isVisiting ? visitingFriendData : userData;
+
+    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || visitingFriendEmail) + "'s Room" : "🏡 My Room";
+    document.getElementById('returnRoomBtn').style.display = isVisiting ? "inline-block" : "none";
+    document.getElementById('rotateRoomBtn').style.display = isVisiting ? "none" : "inline-block";
+    document.getElementById('roomInstructText').textContent = isVisiting ? "👀 Viewing Mode · Interactive edit disabled" : "📱 Click/Tap object to select & drag · Click Rotate or press R to spin";
+
     container.innerHTML = `
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
-      <button class="btn secondary rotate-btn-overlay" onclick="rotateCurrentFurniture()">🔄 Rotate (R)</button>
-      <div class="room-instructions">📱 Click/Tap object to select & drag · Click Rotate or press R to spin</div>
+      ${isVisiting ? '' : '<button class="btn secondary rotate-btn-overlay" onclick="rotateCurrentFurniture()">🔄 Rotate (R)</button>'}
+      <div class="room-instructions">${isVisiting ? '👀 Visiting Room Mode' : '📱 Click/Tap object to select & drag · Click Rotate or press R to spin'}</div>
     `;
 
     const scene = new THREE.Scene();
@@ -709,11 +769,11 @@ function init3DRoom() {
     scene.add(leftWall);
 
     const furnitureMeshes = [];
-    if (userData && userData.owned) {
-      userData.owned.forEach(id => {
+    if (targetData && targetData.owned) {
+      targetData.owned.forEach(id => {
         let pDef = products.find(p => p.id === id);
         if (!pDef) return;
-        let pos = userData.positions && userData.positions[id] ? userData.positions[id] : {x:0, y:0, z:0, rot:0};
+        let pos = targetData.positions && targetData.positions[id] ? targetData.positions[id] : {x:0, y:0, z:0, rot:0};
 
         const group = createItemModel(id);
         group.position.set(pos.x, pos.y || 0, pos.z);
@@ -739,6 +799,7 @@ function init3DRoom() {
     }
 
     function handleStart(e) {
+      if (isVisiting) return; // Prevent drag edits in friend rooms
       updatePointer(e);
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObjects(scene.children, true);
@@ -768,7 +829,7 @@ function init3DRoom() {
     }
 
     function handleMove(e) {
-      if (!isDragging || !activeSelectedFurniture) return;
+      if (!isDragging || !activeSelectedFurniture || isVisiting) return;
       updatePointer(e);
       raycaster.setFromCamera(mouse, camera);
 
