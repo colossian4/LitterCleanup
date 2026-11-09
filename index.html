@@ -486,6 +486,7 @@ let parkCameraAngleY = Math.PI / 4;
 let parkTrashItems = [];
 let parkCatMesh = null;
 let parkAnimationId = null;
+let parkMeshGroups = [];
 
 const movementKeys = { up: false, down: false, left: false, right: false };
 let joystickVector = { x: 0, y: 0 };
@@ -764,7 +765,7 @@ function setupCloudListeners() {
       if(document.getElementById('room').classList.contains('active')) {
         init3DRoom();
       }
-      if(document.getElementById('park').classList.contains('active')) {
+      if(document.getElementById('park').classList.contains('active') && !parkAnimationId) {
         initPark();
       }
       if(document.getElementById('profile').classList.contains('active') && (!viewingProfileUid || viewingProfileUid === currentUser.uid)) {
@@ -2164,7 +2165,7 @@ function initPark() {
     parkCatMesh.position.set(0, 0, 0);
     scene.add(parkCatMesh);
 
-    const trashMeshGroup = [];
+    parkMeshGroups = [];
     parkTrashItems.forEach((t, idx) => {
       if(t.collected) return;
       const tGroup = new THREE.Group();
@@ -2181,7 +2182,7 @@ function initPark() {
       tGroup.position.set(t.x, 0, t.z);
       tGroup.userData = { index: idx };
       scene.add(tGroup);
-      trashMeshGroup.push(tGroup);
+      parkMeshGroups.push(tGroup);
     });
 
     let parkWalkCycle = 0;
@@ -2237,7 +2238,10 @@ function initPark() {
               let countEl = document.getElementById('litterCountDisplay');
               if(countEl) countEl.textContent = remaining + " / 5";
 
-              initPark();
+              let targetMeshGroup = parkMeshGroups.find(g => g.userData.index === idx);
+              if(targetMeshGroup) {
+                scene.remove(targetMeshGroup);
+              }
             }
           }
         });
