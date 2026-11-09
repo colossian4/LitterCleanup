@@ -290,7 +290,7 @@ const db = firebase.firestore();
 let currentUser = null;
 let currentUserEmail = '';
 let userData = {
-  coins: 100, cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0,
+  coins: 500, cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0,
   roomLevel: 0,
   owned: ['bed','teddy','plant','lamp','painting','cat','window','door'],
   positions: {
@@ -465,7 +465,6 @@ function setupCloudListeners() {
   db.collection('user_profiles').doc(currentUser.uid).onSnapshot(doc => {
     if (doc.exists) {
       let d = doc.data();
-      // Support both root-level fields and old nested 'data' map format for backward compatibility
       let sourceObj = d.data || d;
       
       userData.coins = sourceObj.coins !== undefined ? sourceObj.coins : userData.coins;
@@ -489,6 +488,10 @@ function setupCloudListeners() {
       if(!headerSpotifyLoaded && userData.spotifyUrl) {
         renderHeaderSpotify(userData.spotifyUrl);
         headerSpotifyLoaded = true;
+      }
+      // Re-initialize room on live sync so items appear instantly when purchased
+      if(document.getElementById('room').classList.contains('active')) {
+        init3DRoom();
       }
     } else {
       document.getElementById('usernameOverlay').style.display = 'flex';
@@ -531,7 +534,6 @@ async function fetchAllMembers() {
 
 function commitCloud() {
   if (!currentUser) return;
-  // Write flat fields directly to Firestore document for direct access & reliability
   db.collection('user_profiles').doc(currentUser.uid).set({
     uid: currentUser.uid,
     email: currentUserEmail,
@@ -651,13 +653,20 @@ const products = [
 
 function buy(id) {
   let p = products.find(x => x.id === id);
-  if (!p || userData.owned.includes(id)) return;
+  if (!p) return;
+  if (userData.owned.includes(id)) return toast('Already owned!');
   if (userData.coins < p.price) return toast('Need more points!');
+  
   userData.coins -= p.price;
   userData.owned.push(id);
+  
   let roomSize = 4 + (userData.roomLevel || 0);
   let limit = roomSize / 2 - 0.5;
+  
+  // Guarantee position object exists so it never spawns NaN or undefined
+  if(!userData.positions) userData.positions = {};
   userData.positions[id] = p.isWallItem ? {x:0, y:2.5, z:-limit, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
+  
   commitCloud();
   render();
   init3DRoom();
@@ -666,10 +675,13 @@ function buy(id) {
 
 function expandRoom() {
   if (visitingFriendUid) return;
-  if ((userData.roomLevel || 0) >= 4) return toast('Room is already at maximum 8x8 size!');
+  let currentLevel = Number(userData.roomLevel || 0);
+  if (currentLevel >= 4) return toast('Room is already at maximum 8x8 size!');
   if (userData.coins < 100) return toast('Need 100 coins to expand room!');
+  
   userData.coins -= 100;
-  userData.roomLevel = (userData.roomLevel || 0) + 1;
+  userData.roomLevel = currentLevel + 1;
+  
   commitCloud();
   render();
   init3DRoom();
