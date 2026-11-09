@@ -947,6 +947,7 @@ function init3DRoom() {
 
     let isVisiting = !!visitingFriendUid;
     let targetData = isVisiting ? visitingFriendData : userData;
+    if(!targetData) targetData = userData;
     let rLevel = targetData.roomLevel || 0;
     let roomSize = 4 + rLevel;
 
