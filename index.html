@@ -259,7 +259,7 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
           <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
           <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
         </div>
-        <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit/Pan view · Click object to move · <b>Arrow Keys</b>: Move Cat Companion 🐱</div>
+        <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit/Pan view · Click object to move · Drag to Trash to store</div>
       </div>
     </div>
 
@@ -395,7 +395,7 @@ let userData = {
   positions: {
     bed:{x:-1.2,y:0,z:-1.2,rot:0},
     teddy:{x:-1.2,y:0.4,z:-1.0,rot:0},
-    cat:{x:-1.2,y:0,z:-1.4,rot:0},
+    cat:{x:-1.2,y:0.4,z:-1.4,rot:0},
     plant:{x:1.2,y:0,z:1.2,rot:0},
     lamp:{x:1.2,y:0,z:-1.2,rot:0},
     painting:{x:-1.2,y:2.5,z:-3.42,rot:0,wall:'back'},
@@ -425,8 +425,6 @@ let userData = {
 
 let allClubMembers = [];
 let activeSelectedFurniture = null;
-let catMeshGroup = null; // Pointer to active cat model mesh
-let catCommitTimeout = null;
 let counts = {cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0};
 let isWalkModeActive = false;
 let headerSpotifyLoaded = false;
@@ -1401,62 +1399,6 @@ function rotateCurrentFurniture() {
 
 window.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'r') rotateCurrentFurniture();
-
-  // Arrow Key Controls for Cat Companion walking around the room
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-    let roomView = document.getElementById('room');
-    if (roomView && roomView.classList.contains('active') && catMeshGroup) {
-      e.preventDefault();
-      
-      let stepSize = 0.25;
-      let targetRot = catMeshGroup.rotation.y;
-      let dx = 0, dz = 0;
-
-      // Calculate direction relative to camera angle
-      let forwardX = -Math.sin(currentCameraAngleY);
-      let forwardZ = -Math.cos(currentCameraAngleY);
-      let rightX = Math.cos(currentCameraAngleY);
-      let rightZ = -Math.sin(currentCameraAngleY);
-
-      if (e.key === 'ArrowUp') {
-        dx = forwardX * stepSize;
-        dz = forwardZ * stepSize;
-        targetRot = Math.atan2(dx, dz);
-      } else if (e.key === 'ArrowDown') {
-        dx = -forwardX * stepSize;
-        dz = -forwardZ * stepSize;
-        targetRot = Math.atan2(dx, dz);
-      } else if (e.key === 'ArrowLeft') {
-        dx = -rightX * stepSize;
-        dz = -rightZ * stepSize;
-        targetRot = Math.atan2(dx, dz);
-      } else if (e.key === 'ArrowRight') {
-        dx = rightX * stepSize;
-        dz = rightZ * stepSize;
-        targetRot = Math.atan2(dx, dz);
-      }
-
-      let bound = 3.0;
-      let newX = Math.max(-bound, Math.min(bound, catMeshGroup.position.x + dx));
-      let newZ = Math.max(-bound, Math.min(bound, catMeshGroup.position.z + dz));
-
-      catMeshGroup.position.x = newX;
-      catMeshGroup.position.z = newZ;
-      catMeshGroup.rotation.y = targetRot;
-
-      if (!userData.positions['cat']) userData.positions['cat'] = { x: 0, y: 0, z: 0, rot: 0 };
-      userData.positions['cat'].x = newX;
-      userData.positions['cat'].z = newZ;
-      userData.positions['cat'].rot = targetRot;
-
-      playSoundFX(550, 'sine', 0.04);
-
-      clearTimeout(catCommitTimeout);
-      catCommitTimeout = setTimeout(() => {
-        commitCloud();
-      }, 500);
-    }
-  }
 });
 
 function init3DRoom() {
@@ -1482,7 +1424,7 @@ function init3DRoom() {
         <button class="btn secondary" onclick="zoomRoom(1.2)" style="padding:4px 8px;font-size:12px">-</button>
         <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
       </div>
-      <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit/Pan view · Click object to move · <b>Arrow Keys</b>: Move Cat Companion 🐱</div>
+      <div class="room-instructions" id="roomInstructText">📱 Drag to Orbit/Pan view · Click object to move · Drag to Trash to store</div>
     `;
 
     const scene = new THREE.Scene();
@@ -1537,8 +1479,6 @@ function init3DRoom() {
     const wallMap = { back: backWall, left: leftWall, right: rightWall, front: frontWall };
 
     const furnitureMeshes = [];
-    catMeshGroup = null;
-
     let itemsToRender = userData.placed || userData.owned;
     if (userData && itemsToRender) {
       itemsToRender.forEach(id => {
@@ -1557,13 +1497,10 @@ function init3DRoom() {
         group.userData = { id, name: pDef.name, isWallItem: pDef.isWallItem, canStack: pDef.canStackOnSurface, surfaceHeight: pDef.surfaceHeight, wall: pos.wall || 'back' };
         scene.add(group);
         furnitureMeshes.push(group);
-
-        if (id === 'cat') {
-          catMeshGroup = group;
-        }
       });
     }
 
+    // Corrected occlusion check: Hide foreground walls (dot > 0.15) and keep background walls visible
     function updateWallVisibility() {
       const camDir = new THREE.Vector3().subVectors(camera.position, new THREE.Vector3(0, 0.8, 0));
       camDir.y = 0;
@@ -1577,7 +1514,7 @@ function init3DRoom() {
         if (w.userData.wallName === 'front') wallNormal.set(0, 0, -1);
 
         let dot = camDir.dot(wallNormal);
-        let isVisible = dot > 0.15;
+        let isVisible = dot > 0.15; // Only show walls facing away from/perpendicular to camera (background walls)
 
         w.visible = isVisible;
         w.raycast = isVisible ? THREE.Mesh.prototype.raycast : () => {};
@@ -1877,4 +1814,180 @@ function initFriend3DRoom() {
       walls.forEach((w) => {
         let wallNormal = new THREE.Vector3(0, 0, 1);
         if (w.userData.wallName === 'back')  wallNormal.set(0, 0, 1);
-        if (w.userData.wallName === 'left')  wall
+        if (w.userData.wallName === 'left')  wallNormal.set(1, 0, 0);
+        if (w.userData.wallName === 'right') wallNormal.set(-1, 0, 0);
+        if (w.userData.wallName === 'front') wallNormal.set(0, 0, -1);
+
+        let dot = camDir.dot(wallNormal);
+        let isVisible = dot > 0.15;
+        w.visible = isVisible;
+        w.raycast = isVisible ? THREE.Mesh.prototype.raycast : () => {};
+      });
+
+      friendFurniture.forEach(fm => {
+        if (fm.userData.isWallItem) {
+          let parentWall = wallMap[fm.userData.wall || 'back'];
+          if (parentWall) {
+            fm.visible = parentWall.visible;
+          }
+        }
+      });
+    }
+    updateFriendWallVisibility();
+
+    let isOrbiting = false;
+    let prevMouseX = 0, prevMouseY = 0;
+    const dom = renderer.domElement;
+
+    dom.addEventListener('mousedown', (e) => { isOrbiting = true; prevMouseX = e.clientX; prevMouseY = e.clientY; });
+    window.addEventListener('mousemove', (e) => {
+      if(!isOrbiting) return;
+      let deltaX = e.clientX - prevMouseX;
+      let deltaY = e.clientY - prevMouseY;
+      prevMouseX = e.clientX; prevMouseY = e.clientY;
+      friendCameraAngleY -= deltaX * 0.008;
+      friendCameraAngleX = Math.max(0.1, Math.min(Math.PI / 2 - 0.05, friendCameraAngleX + deltaY * 0.008));
+      updateFriendCamera();
+      updateFriendWallVisibility();
+    });
+    window.addEventListener('mouseup', () => { isOrbiting = false; });
+
+    (function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); })();
+  }, 100);
+}
+
+async function postFeed() {
+  let text = document.getElementById('postInput').value.trim();
+  if (!text) return;
+  if(!userData.posts) userData.posts = [];
+  userData.posts.unshift({ id: Date.now().toString(), user: userData.name || "Member", text, time: new Date().toLocaleTimeString(), comments: [] });
+  commitCloud();
+  document.getElementById('postInput').value = '';
+  renderProfileView(userData, true);
+  toast('Status update posted to your profile!');
+}
+
+async function addComment(profileUid, postId) {
+  let inputEl = document.getElementById('commentInput_' + postId);
+  let text = inputEl ? inputEl.value.trim() : '';
+  if(!text) return toast('Type a comment!');
+
+  if(profileUid === currentUser.uid) {
+    let p = userData.posts.find(x => x.id === postId);
+    if(p) {
+      if(!p.comments) p.comments = [];
+      p.comments.push({ user: userData.name || "Member", text, time: new Date().toLocaleTimeString() });
+      commitCloud();
+      renderProfileView(userData, true);
+      toast('Comment added!');
+    }
+  } else {
+    let docRef = db.collection('user_profiles').doc(profileUid);
+    let doc = await docRef.get();
+    if(doc.exists) {
+      let d = doc.data();
+      let dSource = d.data || d;
+      let posts = dSource.posts || [];
+      let p = posts.find(x => x.id === postId);
+      if(p) {
+        if(!p.comments) p.comments = [];
+        p.comments.push({ user: userData.name || "Member", text, time: new Date().toLocaleTimeString() });
+        await docRef.set({ data: { ...dSource, posts } }, { merge: true });
+        toast('Comment added!');
+      }
+    }
+  }
+}
+
+async function sendDM() {
+  let recipientName = document.getElementById('dmRecipient').value.trim();
+  let text = document.getElementById('dmInput').value.trim();
+  if (!recipientName || !text) return toast('Enter recipient name and message!');
+
+  let foundMember = allClubMembers.find(m => m.name.toLowerCase() === recipientName.toLowerCase());
+  let targetUid = foundMember ? foundMember.uid : null;
+
+  await db.collection('messages').add({
+    fromUid: currentUser.uid,
+    fromName: userData.name || "Member",
+    toUid: targetUid,
+    toName: recipientName,
+    text,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    time: new Date().toLocaleTimeString()
+  });
+  document.getElementById('dmInput').value = '';
+  toast('DM sent!');
+}
+
+function renderDMs(messages) {
+  let dmEl = document.getElementById('dmContainer');
+  if (dmEl) {
+    dmEl.innerHTML = messages.map(m => `
+      <div class="msg"><b>${m.fromUid === currentUser.uid ? 'You (to ' + m.toName + ')' : m.fromName}:</b> ${m.text}</div>
+    `).join('') || '<div class="sub">No direct messages yet.</div>';
+  }
+}
+
+function render() {
+  if (!userData) return;
+  document.getElementById('coins').textContent = userData.coins;
+
+  let owned = userData.owned || [];
+  let roomInvEl = document.getElementById('roomInventoryGrid');
+  if(roomInvEl) {
+    roomInvEl.innerHTML = owned.map(id => {
+      let p = products.find(x => x.id === id);
+      if(!p || p.isWallpaper || p.isFlooring) return '';
+      let isPlaced = (userData.placed || []).includes(id);
+      return `
+        <div class="shopitem">
+          <b>${p.name}</b>
+          <small>${isPlaced ? '🟢 Placed in Room' : '📦 In Storage'}</small>
+          ${isPlaced ? 
+            `<button class="btn secondary" style="padding:6px;font-size:11px" onclick="storeItem('${p.id}')">STORE AWAY</button>` : 
+            `<button class="btn" style="padding:6px;font-size:11px" onclick="placeItem('${p.id}')">PLACE IN ROOM</button>`
+          }
+        </div>
+      `;
+    }).join('') || '<div class="sub">No items owned yet.</div>';
+  }
+
+  document.getElementById('shopgrid').innerHTML = products.map(p => {
+    let wallColors = userData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
+    let isOwnedWallpaperOrFlooring = (p.isWallpaper && (activeCustomizeWall === 'all' ? wallColors.back === p.colorValue : wallColors[activeCustomizeWall] === p.colorValue)) || (p.isFlooring && userData.flooring === p.colorValue);
+    return `
+      <div class="shopitem">
+        <b>${p.name}</b><small>${p.price} 🪙</small>
+        ${isOwnedWallpaperOrFlooring ? '<button class="btn secondary" disabled>ACTIVE ✓</button>' : `<button class="btn" onclick="buy('${p.id}')">${p.isWallpaper || p.isFlooring ? 'APPLY / BUY' : 'BUY'}</button>`}
+      </div>
+    `;
+  }).join('');
+  renderPhotoDatabase();
+  renderFriendsList();
+  renderStepsStats();
+  if(!viewingProfileUid || viewingProfileUid === currentUser.uid) {
+    renderProfileView(userData, true);
+  }
+}
+
+async function saveProfile() {
+  let newName = document.getElementById('nameInput').value.trim();
+  userData.name = newName || ("Member #" + currentUser.uid.substring(0,4));
+  userData.catName = document.getElementById('catNameInput').value.trim() || 'Whiskers';
+  userData.catColor = document.getElementById('catColorInput').value;
+  userData.spotifyUrl = document.getElementById('spotifyInput').value.trim();
+  commitCloud();
+  render();
+  renderHeaderSpotify(userData.spotifyUrl);
+  fetchAllMembers();
+  toast('Profile saved to Firebase!');
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  fetchAllMembers();
+  init3DRoom();
+});
+</script>
+</body>
+</html>
