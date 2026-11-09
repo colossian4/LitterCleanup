@@ -133,16 +133,17 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <div class="header-right">
     <button class="walk-btn" id="walkToggle" onclick="toggleWalkMode()">🌲 ON A WALK</button>
     <button class="audio-btn" id="audioToggle" onclick="toggleAudio()">🎵 8-BIT MUSIC: OFF</button>
-    <div class="wallet">🪙 <b id="coins">0</b> COINS</div>
+    <div class="wallet">🪙 <b id="coins">500</b> COINS</div>
   </div>
 </header>
 
 <div class="layout">
 <aside class="sidebar">
   <button class="nav active" data-view="cleanup"><span>🧤</span>Clean up</button>
+  <button class="nav" data-view="steps"><span>👟</span>Step Logger</button>
   <button class="nav" data-view="photos"><span>📸</span>Photo Database</button>
   <button class="nav" data-view="room" onclick="init3DRoom()"><span>🏡</span>My Room</button>
-  <button class="nav" data-view="shop"><span>🛍️</span>Shop</button>
+  <button class="nav" data-view="shop"><span>🛍️</span>Shop & Inventory</button>
   <button class="nav" data-view="social"><span>💬</span>Social & DMs</button>
   <button class="nav" data-view="friends" onclick="loadDirectory()"><span>👥</span>Members & Friends</button>
   <button class="nav" data-view="profile"><span>👤</span>Profile</button>
@@ -162,6 +163,25 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
       <div class="item-row"><div><b>House-Chore</b> <small style="color:var(--muted)">20 points</small></div><div class="counter"><button onclick="change('houseChore',-1)">−</button><strong id="houseChore">0</strong><button onclick="change('houseChore',1)">+</button></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0"><span>Reward:</span><strong id="reward" style="color:var(--lime);font:18px 'DM Mono'">0 🪙</strong></div>
       <button class="btn full" id="submit">LOG & EARN POINTS ✨</button>
+    </div>
+  </section>
+
+  <section class="view" id="steps">
+    <div class="hero">
+      <div><div class="eyebrow">DAILY ACTIVITY TRACKER</div><h2>Step & Distance Logger</h2><p>Log your daily step count to track distance walked in meters and miles ($1\text{ step} \approx 0.762\text{m}$).</p></div>
+    </div>
+    <div class="panel">
+      <h3>👟 Log Today's Steps</h3>
+      <label class="sub">Enter steps walked today:</label>
+      <input class="field" id="stepInput" type="number" placeholder="e.g. 7500" min="0">
+      <button class="btn full" onclick="logSteps()">CALCULATE & SAVE STEPS 🚶‍♂️</button>
+      
+      <div style="margin-top:20px;background:var(--bg);border:1px solid var(--line);padding:16px;border-radius:12px">
+        <h4 style="margin:0 0 10px;color:var(--lime)">📊 Today's Totals</h4>
+        <div class="item-row"><div>Total Steps</div><strong id="statSteps" style="color:var(--lime)">0</strong></div>
+        <div class="item-row"><div>Distance (Meters)</div><strong id="statMeters" style="color:var(--lime)">0.00 m</strong></div>
+        <div class="item-row"><div>Distance (Miles)</div><strong id="statMiles" style="color:var(--lime)">0.00 mi</strong></div>
+      </div>
     </div>
   </section>
 
@@ -188,13 +208,12 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   <section class="view" id="room">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room</h3>
+        <h3 id="roomHeaderTitle" style="margin:0">🏡 My Room (7x7)</h3>
         <button class="btn secondary" id="returnRoomBtn" style="display:none;padding:6px 12px;font-size:12px" onclick="viewMyOwnRoom()">RETURN TO MY ROOM</button>
       </div>
       <div id="roomCanvasContainer">
         <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
         <div class="room-top-controls">
-          <button class="btn secondary" id="expandRoomBtn" style="padding:6px 10px;font-size:11px" onclick="expandRoom()">📐 Expand Room (100 🪙)</button>
           <button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>
         </div>
         <div class="room-instructions" id="roomInstructText">📱 Click/Tap object to select & drag · Click Rotate or press R to spin</div>
@@ -204,7 +223,15 @@ body.walk-mode .btn{box-shadow:0 4px 0 #288094}body.walk-mode .btn:active{box-sh
   </section>
 
   <section class="view" id="shop">
-    <div class="panel"><h3>🪑 Furniture, Windows, Doors & Decor</h3><div class="shopgrid" id="shopgrid"></div></div>
+    <div class="panel">
+      <h3>📦 Room Inventory (Stored Items)</h3>
+      <p class="sub">Items stored here are out of your room but ready to be placed anytime!</p>
+      <div class="shopgrid" id="inventoryGrid"></div>
+    </div>
+    <div class="panel" style="margin-top:20px">
+      <h3>🛍️ Furniture Shop</h3>
+      <div class="shopgrid" id="shopgrid"></div>
+    </div>
   </section>
 
   <section class="view" id="social">
@@ -290,32 +317,28 @@ const db = firebase.firestore();
 let currentUser = null;
 let currentUserEmail = '';
 let userData = {
-  coins: 500, 
-  cans: 0, 
-  plastic: 0, 
-  glass: 0, 
-  goodDeed: 0, 
-  houseChore: 0,
-  roomLevel: 0,
+  coins: 500, cans:0, plastic:0, glass:0, goodDeed:0, houseChore:0,
   owned: ['bed','teddy','plant','lamp','painting','cat','window','door','sofa','desk','guitar','arcade','tv','bookcase','gaming_pc','snake_plant'],
+  placed: ['bed','teddy','plant','lamp','painting','cat','window','door','sofa','desk','guitar','arcade','tv','bookcase','gaming_pc','snake_plant'],
   positions: {
-    bed:{x:-1.0,y:0,z:-1.0,rot:0},
-    teddy:{x:-1.0,y:0.4,z:-0.8,rot:0},
-    cat:{x:-1.0,y:0.4,z:-1.2,rot:0},
-    plant:{x:1.0,y:0,z:1.0,rot:0},
-    lamp:{x:1.0,y:0,z:-1.0,rot:0},
-    painting:{x:-1.0,y:2.5,z:-1.92,rot:0,wall:'back'},
-    window:{x:1.0,y:2.5,z:-1.92,rot:0,wall:'back'},
-    door:{x:-1.92,y:1.5,z:1.0,rot:Math.PI/2,wall:'left'},
-    sofa:{x:0,y:0,z:1.0,rot:0},
-    desk:{x:1.0,y:0,z:0,rot:0},
-    guitar:{x:-1.92,y:1.5,z:-0.5,rot:Math.PI/2,wall:'left'},
-    arcade:{x:-1.0,y:0,z:1.0,rot:0},
-    tv:{x:0,y:0,z:-1.92,rot:0,wall:'back'},
-    bookcase:{x:-1.92,y:0,z:0,rot:Math.PI/2,wall:'left'},
-    gaming_pc:{x:1.0,y:0.8,z:0,rot:0},
-    snake_plant:{x:-1.0,y:0,z:0,rot:0}
+    bed:{x:-1.2,y:0,z:-1.2,rot:0},
+    teddy:{x:-1.2,y:0.4,z:-1.0,rot:0},
+    cat:{x:-1.2,y:0.4,z:-1.4,rot:0},
+    plant:{x:1.2,y:0,z:1.2,rot:0},
+    lamp:{x:1.2,y:0,z:-1.2,rot:0},
+    painting:{x:-1.2,y:2.5,z:-3.42,rot:0,wall:'back'},
+    window:{x:1.2,y:2.5,z:-3.42,rot:0,wall:'back'},
+    door:{x:-3.42,y:1.5,z:1.2,rot:Math.PI/2,wall:'left'},
+    sofa:{x:0,y:0,z:1.2,rot:0},
+    desk:{x:1.2,y:0,z:0,rot:0},
+    guitar:{x:-3.42,y:1.5,z:-0.8,rot:Math.PI/2,wall:'left'},
+    arcade:{x:-1.2,y:0,z:1.2,rot:0},
+    tv:{x:0,y:0,z:-3.42,rot:0,wall:'back'},
+    bookcase:{x:-3.42,y:0,z:0,rot:Math.PI/2,wall:'left'},
+    gaming_pc:{x:1.2,y:0.8,z:0,rot:0},
+    snake_plant:{x:-1.2,y:0,z:0,rot:0}
   },
+  steps: 0,
   name: '',
   uid: '',
   catName: 'Whiskers',
@@ -482,9 +505,10 @@ function setupCloudListeners() {
       let sourceObj = d.data || d;
       
       userData.coins = sourceObj.coins !== undefined ? sourceObj.coins : userData.coins;
-      userData.roomLevel = sourceObj.roomLevel !== undefined ? Number(sourceObj.roomLevel) : userData.roomLevel;
       userData.owned = sourceObj.owned || userData.owned;
+      userData.placed = sourceObj.placed || userData.owned; // fallback
       userData.positions = sourceObj.positions || userData.positions;
+      userData.steps = sourceObj.steps !== undefined ? sourceObj.steps : userData.steps;
       userData.name = sourceObj.name || userData.name;
       userData.catName = sourceObj.catName || userData.catName;
       userData.catColor = sourceObj.catColor || userData.catColor;
@@ -552,9 +576,10 @@ function commitCloud() {
     email: currentUserEmail,
     displayName: userData.name,
     coins: userData.coins,
-    roomLevel: userData.roomLevel,
     owned: userData.owned,
+    placed: userData.placed,
     positions: userData.positions,
+    steps: userData.steps,
     name: userData.name,
     catName: userData.catName,
     catColor: userData.catColor,
@@ -620,6 +645,28 @@ function change(t, d) {
   document.getElementById('reward').textContent = calcReward()+' 🪙';
 }
 
+function logSteps() {
+  let val = parseInt(document.getElementById('stepInput').value);
+  if(isNaN(val) || val < 0) return toast('Enter a valid step count!');
+  userData.steps = (userData.steps || 0) + val;
+  document.getElementById('stepInput').value = '';
+  commitCloud();
+  renderStepsStats();
+  toast('Logged ' + val.toLocaleString() + ' steps! 👟');
+}
+
+function renderStepsStats() {
+  let steps = userData.steps || 0;
+  let meters = steps * 0.762;
+  let miles = meters / 1609.344;
+  let sEl = document.getElementById('statSteps');
+  let mEl = document.getElementById('statMeters');
+  let miEl = document.getElementById('statMiles');
+  if(sEl) sEl.textContent = steps.toLocaleString();
+  if(mEl) mEl.textContent = meters.toFixed(1) + ' m';
+  if(miEl) miEl.textContent = miles.toFixed(2) + ' mi';
+}
+
 document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.nav').forEach(x => x.classList.toggle('active', x === b));
   let targetView = b.dataset.view;
@@ -632,6 +679,9 @@ document.querySelectorAll('.nav').forEach(b => b.addEventListener('click', () =>
   }
   if(targetView === 'friends') {
     fetchAllMembers();
+  }
+  if(targetView === 'steps') {
+    renderStepsStats();
   }
 }));
 
@@ -674,11 +724,11 @@ function buy(id) {
   
   userData.coins -= p.price;
   userData.owned.push(id);
+  if(!userData.placed) userData.placed = [];
+  userData.placed.push(id);
   
-  let roomSize = 4 + Number(userData.roomLevel || 0);
-  let limit = roomSize / 2 - 0.5;
   if(!userData.positions) userData.positions = {};
-  userData.positions[id] = p.isWallItem ? {x:0, y:2.5, z:-limit, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
+  userData.positions[id] = p.isWallItem ? {x:0, y:2.5, z:-3.42, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
   
   commitCloud();
   render();
@@ -686,20 +736,29 @@ function buy(id) {
   toast('Purchased ' + p.name + '!');
 }
 
-function expandRoom() {
-  if (visitingFriendUid) return;
-  let currentLevel = Number(userData.roomLevel || 0);
-  if (currentLevel >= 4) return toast('Room is already at maximum 8x8 size!');
-  if (userData.coins < 100) return toast('Need 100 coins to expand room!');
-  
-  userData.coins -= 100;
-  userData.roomLevel = currentLevel + 1;
-  
+function storeItem(id) {
+  if(!userData.placed) userData.placed = userData.owned || [];
+  userData.placed = userData.placed.filter(item => item !== id);
   commitCloud();
   render();
   init3DRoom();
-  let newSize = 4 + userData.roomLevel;
-  toast('Room expanded! 🎉 (' + newSize + 'x' + newSize + ')');
+  toast('Stored in inventory! 📦');
+}
+
+function placeItem(id) {
+  if(!userData.placed) userData.placed = [];
+  if(!userData.placed.includes(id)) userData.placed.push(id);
+  
+  let pDef = products.find(p => p.id === id);
+  if(pDef && (!userData.positions || !userData.positions[id])) {
+    if(!userData.positions) userData.positions = {};
+    userData.positions[id] = pDef.isWallItem ? {x:0, y:2.5, z:-3.42, rot:0, wall:'back'} : {x:0, y:0, z:0, rot:0};
+  }
+
+  commitCloud();
+  render();
+  init3DRoom();
+  toast('Placed item into room! 🏡');
 }
 
 function addFriend(uid) {
@@ -995,19 +1054,16 @@ function init3DRoom() {
     let isVisiting = !!visitingFriendUid;
     let targetData = isVisiting ? visitingFriendData : userData;
     if(!targetData) targetData = userData;
-    let rLevel = Number(targetData.roomLevel || 0);
-    let roomSize = 4 + rLevel;
+    let roomSize = 7;
 
-    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room (" + roomSize + "x" + roomSize + ")";
+    document.getElementById('roomHeaderTitle').textContent = isVisiting ? "🏡 Visiting " + (targetData.name || "Friend") + "'s Room" : "🏡 My Room (7x7)";
     document.getElementById('returnRoomBtn').style.display = isVisiting ? "inline-block" : "none";
-    document.getElementById('expandRoomBtn').style.display = (isVisiting || rLevel >= 4) ? "none" : "inline-block";
     document.getElementById('rotateRoomBtn').style.display = isVisiting ? "none" : "inline-block";
     document.getElementById('roomInstructText').textContent = isVisiting ? "👀 Viewing Mode · Interactive edit disabled" : "📱 Click/Tap object to select & drag · Click Rotate or press R to spin";
 
     container.innerHTML = `
       <div class="active-item-banner" id="activeItemBanner">Moving: None</div>
       <div class="room-top-controls">
-        ${isVisiting || rLevel >= 4 ? '' : '<button class="btn secondary" id="expandRoomBtn" style="padding:6px 10px;font-size:11px" onclick="expandRoom()">📐 Expand Room (100 🪙)</button>'}
         ${isVisiting ? '' : '<button class="btn secondary" id="rotateRoomBtn" onclick="rotateCurrentFurniture()" style="padding:6px 10px;font-size:11px">🔄 Rotate (R)</button>'}
       </div>
       <div class="room-instructions">${isVisiting ? '👀 Visiting Room Mode' : '📱 Click/Tap object to select & drag · Click Rotate or press R to spin'}</div>
@@ -1017,7 +1073,7 @@ function init3DRoom() {
     scene.background = new THREE.Color(0x13221a);
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    let camDist = 7 + rLevel * 1.2;
+    let camDist = 10;
     camera.position.set(camDist, camDist * 0.8, camDist);
     camera.lookAt(0, 1, 0);
 
@@ -1050,8 +1106,9 @@ function init3DRoom() {
     scene.add(leftWall);
 
     const furnitureMeshes = [];
-    if (targetData && targetData.owned) {
-      targetData.owned.forEach(id => {
+    let itemsToRender = isVisiting ? (targetData.placed || targetData.owned) : (targetData.placed || targetData.owned);
+    if (targetData && itemsToRender) {
+      itemsToRender.forEach(id => {
         let pDef = products.find(p => p.id === id);
         if (!pDef) return;
         
@@ -1279,6 +1336,28 @@ function render() {
   document.getElementById('catColorInput').value = userData.catColor || '0xffa500';
   document.getElementById('spotifyInput').value = userData.spotifyUrl || '';
 
+  let owned = userData.owned || [];
+  let placed = userData.userData_placed || userData.placed || owned;
+
+  let inventoryEl = document.getElementById('inventoryGrid');
+  if(inventoryEl) {
+    inventoryEl.innerHTML = owned.map(id => {
+      let p = products.find(x => x.id === id);
+      if(!p) return '';
+      let isPlaced = (userData.placed || []).includes(id);
+      return `
+        <div class="shopitem">
+          <b>${p.name}</b>
+          <small>${isPlaced ? '🟢 Placed in Room' : '📦 In Storage'}</small>
+          ${isPlaced ? 
+            `<button class="btn secondary" style="padding:6px;font-size:11px" onclick="storeItem('${p.id}')">STORE AWAY</button>` : 
+            `<button class="btn" style="padding:6px;font-size:11px" onclick="placeItem('${p.id}')">PLACE IN ROOM</button>`
+          }
+        </div>
+      `;
+    }).join('') || '<div class="sub">No items owned yet.</div>';
+  }
+
   document.getElementById('shopgrid').innerHTML = products.map(p => `
     <div class="shopitem">
       <b>${p.name}</b><small>${p.price} 🪙</small>
@@ -1287,6 +1366,7 @@ function render() {
   `).join('');
   renderPhotoDatabase();
   renderFriendsList();
+  renderStepsStats();
   renderSpotifyEmbed('profileSpotifyPreview', userData.spotifyUrl || '');
 }
 
