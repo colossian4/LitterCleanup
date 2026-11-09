@@ -1460,23 +1460,24 @@ function init3DRoom() {
 
     const halfSize = roomSize / 2;
 
-    // Active Back and Left Walls for placing/hanging items
-    const backMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.back || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
-    const leftMat = new THREE.MeshStandardMaterial({color: parseInt(wallColors.left || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide});
+    // Build all 4 walls with outward-facing normals so angle tests hide foreground walls
+    const createWall = (name, x, y, z, rotY, colorHex) => {
+      const mat = new THREE.MeshStandardMaterial({color: parseInt(colorHex), roughness: 0.8, side: THREE.DoubleSide});
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), mat);
+      wall.position.set(x, y, z);
+      wall.rotation.y = rotY;
+      wall.userData = { wallName: name };
+      scene.add(wall);
+      return wall;
+    };
 
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), backMat);
-    backWall.position.set(0, 3, -halfSize);
-    backWall.userData = { wallName: 'back' };
-    scene.add(backWall);
+    const backWall  = createWall('back',   0,        3, -halfSize, 0,          wallColors.back  || '0x16261e');
+    const leftWall  = createWall('left',  -halfSize, 3,  0,        Math.PI/2,  wallColors.left  || '0x16261e');
+    const rightWall = createWall('right',  halfSize, 3,  0,       -Math.PI/2,  wallColors.right || '0x16261e');
+    const frontWall = createWall('front',  0,        3,  halfSize, Math.PI,    wallColors.front || '0x16261e');
 
-    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), leftMat);
-    leftWall.position.set(-halfSize, 3, 0);
-    leftWall.rotation.y = Math.PI / 2;
-    leftWall.userData = { wallName: 'left' };
-    scene.add(leftWall);
-
-    const walls = [backWall, leftWall];
-    const wallMap = { back: backWall, left: leftWall };
+    const walls = [backWall, leftWall, rightWall, frontWall];
+    const wallMap = { back: backWall, left: leftWall, right: rightWall, front: frontWall };
 
     const furnitureMeshes = [];
     let itemsToRender = userData.placed || userData.owned;
@@ -1500,24 +1501,30 @@ function init3DRoom() {
       });
     }
 
+    // Dynamic camera angle occlusion calculation
     function updateWallVisibility() {
-      let wallDistances = walls.map(w => {
-        let center = new THREE.Vector3();
-        w.getWorldPosition(center);
-        return { wall: w, dist: camera.position.distanceTo(center) };
-      });
-      wallDistances.sort((a, b) => a.dist - b.dist);
+      // Vector pointing from target (center of room) to camera
+      const camDir = new THREE.Vector3().subVectors(camera.position, new THREE.Vector3(0, 0.8, 0));
+      camDir.y = 0; // Evaluate orientation along ground horizontal plane
+      camDir.normalize();
 
-      // If camera gets too close to a wall, turn it off completely so it doesn't block view
       walls.forEach((w) => {
-        let center = new THREE.Vector3();
-        w.getWorldPosition(center);
-        let dist = camera.position.distanceTo(center);
-        let show = dist > 2.5; // Turn off wall when camera gets too close
-        w.visible = show;
-        w.raycast = show ? THREE.Mesh.prototype.raycast : () => {};
+        // Wall normal facing inside the room
+        let wallNormal = new THREE.Vector3(0, 0, 1);
+        if (w.userData.wallName === 'back')  wallNormal.set(0, 0, 1);
+        if (w.userData.wallName === 'left')  wallNormal.set(1, 0, 0);
+        if (w.userData.wallName === 'right') wallNormal.set(-1, 0, 0);
+        if (w.userData.wallName === 'front') wallNormal.set(0, 0, -1);
+
+        // Dot product > 0 means camera is facing the FRONT side of the wall plane (foreground wall blocking view)
+        let dot = camDir.dot(wallNormal);
+        let isVisible = dot <= 0.15; // Hide wall as camera rotates behind it
+
+        w.visible = isVisible;
+        w.raycast = isVisible ? THREE.Mesh.prototype.raycast : () => {};
       });
 
+      // Hide/Show items mounted on hidden walls
       furnitureMeshes.forEach(fm => {
         if (fm.userData.isWallItem) {
           let parentWall = wallMap[fm.userData.wall || 'back'];
@@ -1625,30 +1632,40 @@ function init3DRoom() {
       let bound = halfSize - 0.5;
 
       if (pDef && pDef.isWallItem) {
-        let backIntersect = new THREE.Vector3();
-        let leftIntersect = new THREE.Vector3();
+        let intersects = [];
+        walls.forEach(w => {
+          if(!w.visible) return;
+          let planeNormal = new THREE.Vector3(0,0,1).applyQuaternion(w.quaternion);
+          let plane = new THREE.Plane().setFromNormalAndCoplanarPoint(planeNormal, w.position);
+          let point = new THREE.Vector3();
+          if(raycaster.ray.intersectPlane(plane, point)) {
+            intersects.push({ wall: w, point: point, dist: point.distanceTo(raycaster.ray.origin) });
+          }
+        });
+        intersects.sort((a,b) => a.dist - b.dist);
 
-        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1), limit), backIntersect);
-        raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(1,0,0), limit), leftIntersect);
+        if(intersects.length > 0) {
+          let hit = intersects[0];
+          let wallName = hit.wall.userData.wallName;
+          let pt = hit.point;
 
-        let minDist = Math.min(Math.abs(backIntersect.z), Math.abs(leftIntersect.x));
-
-        let chosenWall = 'back';
-        if (minDist === Math.abs(leftIntersect.x)) {
-          activeSelectedFurniture.position.set(-limit, Math.max(1, Math.min(5, leftIntersect.y)), Math.max(-bound, Math.min(bound, leftIntersect.z)));
-          activeSelectedFurniture.rotation.y = Math.PI / 2;
-          chosenWall = 'left';
-        } else {
-          activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, backIntersect.x)), Math.max(1, Math.min(5, backIntersect.y)), -limit);
-          activeSelectedFurniture.rotation.y = 0;
-          chosenWall = 'back';
+          if(wallName === 'back') {
+            activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, pt.x)), Math.max(1, Math.min(5, pt.y)), -limit);
+            activeSelectedFurniture.rotation.y = 0;
+          } else if(wallName === 'left') {
+            activeSelectedFurniture.position.set(-limit, Math.max(1, Math.min(5, pt.y)), Math.max(-bound, Math.min(bound, pt.z)));
+            activeSelectedFurniture.rotation.y = Math.PI / 2;
+          } else if(wallName === 'right') {
+            activeSelectedFurniture.position.set(limit, Math.max(1, Math.min(5, pt.y)), Math.max(-bound, Math.min(bound, pt.z)));
+            activeSelectedFurniture.rotation.y = -Math.PI / 2;
+          } else if(wallName === 'front') {
+            activeSelectedFurniture.position.set(Math.max(-bound, Math.min(bound, pt.x)), Math.max(1, Math.min(5, pt.y)), limit);
+            activeSelectedFurniture.rotation.y = Math.PI;
+          }
+          activeSelectedFurniture.userData.wall = wallName;
+          if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
+          userData.positions[pDef.id].wall = wallName;
         }
-
-        activeSelectedFurniture.userData.wall = chosenWall;
-        if(!userData.positions[pDef.id]) userData.positions[pDef.id] = {};
-        userData.positions[pDef.id].wall = chosenWall;
-
-        updateWallVisibility();
       } else {
         const target = new THREE.Vector3();
         raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0), 0), target);
@@ -1754,19 +1771,23 @@ function initFriend3DRoom() {
     const halfSize = roomSize / 2;
     let wallColors = targetData.wallpapers || { back: '0x16261e', left: '0x16261e', right: '0x16261e', front: '0x16261e' };
 
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), new THREE.MeshStandardMaterial({color: parseInt(wallColors.back || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide}));
-    backWall.position.set(0, 3, -halfSize);
-    backWall.userData = { wallName: 'back' };
-    scene.add(backWall);
+    const createWall = (name, x, y, z, rotY, colorHex) => {
+      const mat = new THREE.MeshStandardMaterial({color: parseInt(colorHex), roughness: 0.8, side: THREE.DoubleSide});
+      const wall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), mat);
+      wall.position.set(x, y, z);
+      wall.rotation.y = rotY;
+      wall.userData = { wallName: name };
+      scene.add(wall);
+      return wall;
+    };
 
-    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomSize, 6), new THREE.MeshStandardMaterial({color: parseInt(wallColors.left || '0x16261e'), roughness: 0.8, side: THREE.DoubleSide}));
-    leftWall.position.set(-halfSize, 3, 0);
-    leftWall.rotation.y = Math.PI / 2;
-    leftWall.userData = { wallName: 'left' };
-    scene.add(leftWall);
+    const backWall  = createWall('back',   0,        3, -halfSize, 0,          wallColors.back  || '0x16261e');
+    const leftWall  = createWall('left',  -halfSize, 3,  0,        Math.PI/2,  wallColors.left  || '0x16261e');
+    const rightWall = createWall('right',  halfSize, 3,  0,       -Math.PI/2,  wallColors.right || '0x16261e');
+    const frontWall = createWall('front',  0,        3,  halfSize, Math.PI,    wallColors.front || '0x16261e');
 
-    const walls = [backWall, leftWall];
-    const wallMap = { back: backWall, left: leftWall };
+    const walls = [backWall, leftWall, rightWall, frontWall];
+    const wallMap = { back: backWall, left: leftWall, right: rightWall, front: frontWall };
     const friendFurniture = [];
 
     let itemsToRender = targetData.placed || targetData.owned;
@@ -1791,13 +1812,21 @@ function initFriend3DRoom() {
     }
 
     function updateFriendWallVisibility() {
+      const camDir = new THREE.Vector3().subVectors(camera.position, new THREE.Vector3(0, 0.8, 0));
+      camDir.y = 0;
+      camDir.normalize();
+
       walls.forEach((w) => {
-        let center = new THREE.Vector3();
-        w.getWorldPosition(center);
-        let dist = camera.position.distanceTo(center);
-        let show = dist > 2.5;
-        w.visible = show;
-        w.raycast = show ? THREE.Mesh.prototype.raycast : () => {};
+        let wallNormal = new THREE.Vector3(0, 0, 1);
+        if (w.userData.wallName === 'back')  wallNormal.set(0, 0, 1);
+        if (w.userData.wallName === 'left')  wallNormal.set(1, 0, 0);
+        if (w.userData.wallName === 'right') wallNormal.set(-1, 0, 0);
+        if (w.userData.wallName === 'front') wallNormal.set(0, 0, -1);
+
+        let dot = camDir.dot(wallNormal);
+        let isVisible = dot <= 0.15;
+        w.visible = isVisible;
+        w.raycast = isVisible ? THREE.Mesh.prototype.raycast : () => {};
       });
 
       friendFurniture.forEach(fm => {
